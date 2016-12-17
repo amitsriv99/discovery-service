@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+		xmlns:context="http://www.springframework.org/schema/context" 
+		xmlns:mvc="http://www.springframework.org/schema/mvc" 
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+		xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd"> 
+		
+		<import resource="common-context.xml"/>
+		
+		<mvc:annotation-driven/> 
+		<context:component-scan base-package="com.labizy.services.content.DiscoveryServiceController" /> 
+		
+		<bean id="CommonProperties" class="com.labizy.services.content.beans.PropertiesBean">
+			<property name="environSystemPropertyName" value="environ"/>
+		</bean>
+		
+		<bean id="CommonUtils" class="com.labizy.services.content.utils.CommonUtils">
+			<property name="commonProperties" ref="CommonProperties"/>
+			<property name="seed" value="-1"/>
+		</bean>
+		
+		<bean id="LocalProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
+		<bean id="TestProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
+		<bean id="PPEProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
+		<bean id="LnPProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
+		<bean id="ProdProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
+		
+		<bean id="PropertiesBuilder" class="com.labizy.services.content.builder.PropertiesBuilder">
+			<property name="commonProperties" ref="CommonProperties"/>
+			<property name="localProperties" ref="LocalProperties"/>
+			<property name="testProperties" ref="TestProperties"/>
+			<property name="ppeProperties" ref="PPEProperties"/>
+			<property name="lnpProperties" ref="LnPProperties"/>
+			<property name="prodProperties" ref="ProdProperties"/>
+			<property name="commonUtils" ref="CommonUtils"/>
+		</bean>
+		
+		<bean id="LabTestsCacheFactory" class="com.labizy.services.content.utils.LabTestsCacheFactory">
+			<!-- The constructor-arg is cache expiry age in minutes.. -->
+			<constructor-arg type="int" value="60"/>
+			<property name="commonUtils" ref="CommonUtils"/>
+		</bean>
+
+		<bean id="LabsCacheFactory" class="com.labizy.services.content.utils.LabsCacheFactory">
+			<!-- The constructor-arg is cache expiry age in minutes.. -->
+			<constructor-arg type="int" value="60"/>
+			<property name="commonUtils" ref="CommonUtils"/>
+		</bean>
+		
+		<bean id="DiscoveryServiceController" class="com.labizy.services.content.DiscoveryServiceController">
+			<property name="labTestsCacheFactory" ref="LabTestsCacheFactory"/>
+			<property name="labsCacheFactory" ref="LabsCacheFactory"/>
+		</bean>
+</beans>
