@@ -1,35 +1,32 @@
 package com.labizy.services.content.beans;
 
+import java.util.ArrayList;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LabsSearchResultsBean {
 
 	private SearchResultsSummaryBean resultSummary;
 	
-	private LabTestImageBean heroBanner;
-	private MostPopularLabTestsBean mostPopularLabTests;
-	private OurPartnerLabsBean ourPartnerLabs;
+	@JsonProperty("labs")
+	private ArrayList<LabBean> labs;
+	
 	private String errorCode;
 	private String errorDescription;
 
-	public LabTestImageBean getHeroBanner() {
-		return heroBanner;
+	public ArrayList<LabBean> getLabs() {
+		return labs;
 	}
-	public void setHeroBanner(LabTestImageBean heroBanner) {
-		this.heroBanner = heroBanner;
+	public void setLabs(ArrayList<LabBean> labs) {
+		this.labs = labs;
 	}
-	public MostPopularLabTestsBean getMostPopularLabTests() {
-		return mostPopularLabTests;
+	public SearchResultsSummaryBean getResultSummary() {
+		return resultSummary;
 	}
-	public void setMostPopularLabTests(MostPopularLabTestsBean mostPopularLabTests) {
-		this.mostPopularLabTests = mostPopularLabTests;
-	}
-	public OurPartnerLabsBean getOurPartnerLabs() {
-		return ourPartnerLabs;
-	}
-	public void setOurPartnerLabs(OurPartnerLabsBean ourPartnerLabs) {
-		this.ourPartnerLabs = ourPartnerLabs;
+	public void setResultSummary(SearchResultsSummaryBean resultSummary) {
+		this.resultSummary = resultSummary;
 	}
 	public String getErrorCode() {
 		return errorCode;

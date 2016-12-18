@@ -16,11 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.labizy.services.content.beans.LabDetailsResultBean;
 import com.labizy.services.content.beans.LabTestBean;
 import com.labizy.services.content.beans.LabTestDetailsResultBean;
 import com.labizy.services.content.beans.LabTestsSearchResultsBean;
+import com.labizy.services.content.beans.LabsSearchResultsBean;
 import com.labizy.services.content.beans.SearchCriteriaBean;
 import com.labizy.services.content.beans.StatusBean;
+import com.labizy.services.content.exceptions.DiscoveryItemsNotFoundException;
 import com.labizy.services.content.utils.LabTestsCacheFactory;
 import com.labizy.services.content.utils.Constants;
 import com.labizy.services.content.utils.LabsCacheFactory;
@@ -119,6 +122,12 @@ public class DiscoveryServiceController {
 		} else{
 			try {
 				labTestsSearchResultsBean = labTestsCacheFactory.getCachedObject(cacheKey, cacheKeyType, searchCriteriaBean);
+			} catch(DiscoveryItemsNotFoundException e){
+				appLogger.error("Caught Exception {}", e);
+
+				labTestsSearchResultsBean = new LabTestsSearchResultsBean();
+				labTestsSearchResultsBean.setErrorCode(Integer.toString(HttpServletResponse.SC_NOT_FOUND));
+				labTestsSearchResultsBean.setErrorDescription(e.getMessage());
 			} catch (Exception e){
 				appLogger.error("Caught Unknown Exception {}", e);
 				errorDescription = errorDescription + "\n" + e.getMessage();
@@ -130,7 +139,11 @@ public class DiscoveryServiceController {
 					
 					httpServletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 				}else{
-					httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+					if(StringUtils.isEmpty(labTestsSearchResultsBean.getErrorCode())){
+						httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+					}else{
+						httpServletResponse.setStatus(Integer.parseInt(labTestsSearchResultsBean.getErrorCode()));
+					}
 				}
 			}
 		}
@@ -155,7 +168,7 @@ public class DiscoveryServiceController {
 		String cacheKeyType = Constants.LAB_TEST_CACHE_KEY_TYPE;
 		
 		String errorCode = Integer.toString(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		String errorDescription = "Unknown Exception. Please check the HomepageContentService application logs for further details.";
+		String errorDescription = "Unknown Exception. Please check the DiscoveryService application logs for further details.";
 
 		if(StringUtils.isEmpty(oauthToken)){
 			labTestDetailsResultBean = new LabTestDetailsResultBean();
@@ -172,10 +185,16 @@ public class DiscoveryServiceController {
 				} else{
 					labTestDetailsResultBean = new LabTestDetailsResultBean();
 					labTestDetailsResultBean.setErrorCode(Integer.toString(HttpServletResponse.SC_NOT_FOUND));
-					labTestDetailsResultBean.setErrorDescription(" Lab test " + id + "could not be found. Check if it's a valid lab test id and then call the API with a valid id.");
+					labTestDetailsResultBean.setErrorDescription("Lab test " + id + " could not be found. Check if it's a valid lab test id and then call the API with a valid id.");
 					
 					httpServletResponse.setStatus(HttpServletResponse.SC_NOT_FOUND);
 				}			
+			} catch(DiscoveryItemsNotFoundException e){
+				appLogger.error("Caught Exception {}", e);
+
+				labTestDetailsResultBean = new LabTestDetailsResultBean();
+				labTestDetailsResultBean.setErrorCode(Integer.toString(HttpServletResponse.SC_NOT_FOUND));
+				labTestDetailsResultBean.setErrorDescription(e.getMessage());
 			} catch (Exception e){
 				appLogger.error("Caught Unknown Exception {}", e);
 				errorDescription = errorDescription + "\n" + e.getMessage();
@@ -186,6 +205,12 @@ public class DiscoveryServiceController {
 					labTestDetailsResultBean.setErrorDescription(errorDescription);
 					
 					httpServletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+				}else{
+					if(StringUtils.isEmpty(labTestDetailsResultBean.getErrorCode())){
+						httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+					}else{
+						httpServletResponse.setStatus(Integer.parseInt(labTestDetailsResultBean.getErrorCode()));
+					}
 				}
 			}
 		}
@@ -195,8 +220,8 @@ public class DiscoveryServiceController {
 		return labTestDetailsResultBean;
 	}
 
-	@RequestMapping(value = "/lab-tests/v1/labs/all", method = RequestMethod.GET, produces="application/json")
-	public @ResponseBody LabTestsSearchResultsBean getLabs(@RequestParam MultiValueMap<String, String> requestParams,
+	@RequestMapping(value = "/labs/v1/all", method = RequestMethod.GET, produces="application/json")
+	public @ResponseBody LabsSearchResultsBean getLabs(@RequestParam MultiValueMap<String, String> requestParams,
 															@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
 																final HttpServletResponse httpServletResponse){
 		if(appLogger.isDebugEnabled()){
@@ -205,46 +230,72 @@ public class DiscoveryServiceController {
 		
 		long startTimestamp = System.currentTimeMillis();
 		
-		LabTestsSearchResultsBean contentModelBean = null;
-		String cacheKey = "";
-		String cacheKeyType = Constants.LAB_TESTS_CACHE_KEY_TYPE;
+		SearchCriteriaBean searchCriteriaBean = null;
+		if(requestParams != null){
+			searchCriteriaBean = new SearchCriteriaBean();
+			RequestParamsValidator requestParamsValidator = new RequestParamsValidator();
+			
+			String offset = requestParams.getFirst(Constants.OFFSET_QUERY_PARAM);
+			searchCriteriaBean.setOffset(requestParamsValidator.validate(Constants.OFFSET_QUERY_PARAM, offset));
+			
+			String limit = requestParams.getFirst(Constants.LIMIT_QUERY_PARAM);
+			searchCriteriaBean.setLimit(requestParamsValidator.validate(Constants.LIMIT_QUERY_PARAM, limit));
+
+			String sortBy = requestParams.getFirst(Constants.SORT_BY_QUERY_PARAM);
+			searchCriteriaBean.setSortBy(requestParamsValidator.validate(Constants.SORT_BY_QUERY_PARAM, sortBy));
+		}
+		
+		LabsSearchResultsBean labsSearchResultsBean = null;
+		String cacheKey = getSearchCriteriaKey(searchCriteriaBean);
+		String cacheKeyType = Constants.LABS_CACHE_KEY_TYPE;
 		
 		String errorCode = "" + HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-		String errorDescription = "Unknown Exception. Please check the HomepageContentService application logs for further details.";
+		String errorDescription = "Unknown Exception. Please check the DiscoveryService application logs for further details.";
 
 		if(StringUtils.isEmpty(oauthToken)){
-			contentModelBean = new LabTestsSearchResultsBean();
-			contentModelBean.setErrorCode("" + HttpServletResponse.SC_UNAUTHORIZED);
-			contentModelBean.setErrorDescription("Unauthorized Access Exception. The AUTH token is not valid.");
+			labsSearchResultsBean = new LabsSearchResultsBean();
+			labsSearchResultsBean.setErrorCode("" + HttpServletResponse.SC_UNAUTHORIZED);
+			labsSearchResultsBean.setErrorDescription("Unauthorized Access Exception. The AUTH token is not valid.");
 			
 			httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 		} else{
 			try {
-				contentModelBean = null;//labTestsCacheFactory.getCachedObject(cacheKey, cacheKeyType);
+				labsSearchResultsBean = labsCacheFactory.getCachedObject(cacheKey, cacheKeyType, searchCriteriaBean);
+			} catch(DiscoveryItemsNotFoundException e){
+				appLogger.error("Caught Exception {}", e);
+
+				labsSearchResultsBean = new LabsSearchResultsBean();
+				labsSearchResultsBean.setErrorCode(Integer.toString(HttpServletResponse.SC_NOT_FOUND));
+				labsSearchResultsBean.setErrorDescription(e.getMessage());
 			} catch (Exception e){
 				appLogger.error("Caught Unknown Exception {}", e);
 				errorDescription = errorDescription + "\n" + e.getMessage();
 			} finally{
-				if (contentModelBean == null){
-					contentModelBean = new LabTestsSearchResultsBean();
-					contentModelBean.setErrorCode(errorCode);
-					contentModelBean.setErrorDescription(errorDescription);
+				if (labsSearchResultsBean == null){
+					labsSearchResultsBean = new LabsSearchResultsBean();
+					labsSearchResultsBean.setErrorCode(errorCode);
+					labsSearchResultsBean.setErrorDescription(errorDescription);
 					
 					httpServletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 				}else{
-					httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+					if(StringUtils.isEmpty(labsSearchResultsBean.getErrorCode())){
+						httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+					}else{
+						httpServletResponse.setStatus(Integer.parseInt(labsSearchResultsBean.getErrorCode()));
+					}
 				}
 			}
 		}
 
 		traceLogger.info("Inside DiscoveryServiceController.getLabs(). Total Time Taken --> {} milliseconds", (System.currentTimeMillis() - startTimestamp));
 		
-		return contentModelBean;
+		return labsSearchResultsBean;
 	}
 
-	@RequestMapping(value = "/lab-tests/v1/labs/lab-1001", method = RequestMethod.GET, produces="application/json")
-	public @ResponseBody LabTestsSearchResultsBean getLabDetails(@RequestParam MultiValueMap<String, String> requestParams,
-															@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
+	@RequestMapping(value = "/labs/v1/{labId}", method = RequestMethod.GET, produces="application/json")
+	public @ResponseBody LabDetailsResultBean getLabDetails(@PathVariable("labId") String labId, 
+																@RequestParam MultiValueMap<String, String> requestParams,
+																@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
 																final HttpServletResponse httpServletResponse){
 		if(appLogger.isDebugEnabled()){
 			appLogger.debug("Inside {}", "DiscoveryServiceController.getLabDetails()");
@@ -252,41 +303,61 @@ public class DiscoveryServiceController {
 		
 		long startTimestamp = System.currentTimeMillis();
 		
-		LabTestsSearchResultsBean contentModelBean = null;
-		String cacheKey = "";//Constants.LAB_TESTS_CACHE_KEY;
-		String cacheKeyType = Constants.LAB_TESTS_CACHE_KEY_TYPE;
+		LabDetailsResultBean labDetailsResultBean = null;
+		String cacheKey = labId;
+		String cacheKeyType = Constants.LAB_TEST_CACHE_KEY_TYPE;
 		
-		String errorCode = "" + HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-		String errorDescription = "Unknown Exception. Please check the HomepageContentService application logs for further details.";
+		String errorCode = Integer.toString(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		String errorDescription = "Unknown Exception. Please check the DiscoveryService application logs for further details.";
 
 		if(StringUtils.isEmpty(oauthToken)){
-			contentModelBean = new LabTestsSearchResultsBean();
-			contentModelBean.setErrorCode("" + HttpServletResponse.SC_UNAUTHORIZED);
-			contentModelBean.setErrorDescription("Unauthorized Access Exception. The AUTH token is not valid.");
+			labDetailsResultBean = new LabDetailsResultBean();
+			labDetailsResultBean.setErrorCode(Integer.toString(HttpServletResponse.SC_UNAUTHORIZED));
+			labDetailsResultBean.setErrorDescription("Unauthorized Access Exception. The AUTH token is not valid.");
 			
 			httpServletResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 		} else{
 			try {
-				contentModelBean = null;//labTestsCacheFactory.getCachedObject(cacheKey, cacheKeyType);
+				labDetailsResultBean = labsCacheFactory.getCachedObject(cacheKey, cacheKeyType);
+				
+				if((labDetailsResultBean != null) && (labDetailsResultBean.getLabDetails() != null)){
+					httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+				} else{
+					labDetailsResultBean = new LabDetailsResultBean();
+					labDetailsResultBean.setErrorCode(Integer.toString(HttpServletResponse.SC_NOT_FOUND));
+					labDetailsResultBean.setErrorDescription("Lab " + labId + " could not be found. Check if it's a valid lab test id and then call the API with a valid id.");
+					
+					httpServletResponse.setStatus(HttpServletResponse.SC_NOT_FOUND);
+				}			
+			} catch(DiscoveryItemsNotFoundException e){
+				appLogger.error("Caught Exception {}", e);
+
+				labDetailsResultBean = new LabDetailsResultBean();
+				labDetailsResultBean.setErrorCode(Integer.toString(HttpServletResponse.SC_NOT_FOUND));
+				labDetailsResultBean.setErrorDescription(e.getMessage());
 			} catch (Exception e){
 				appLogger.error("Caught Unknown Exception {}", e);
 				errorDescription = errorDescription + "\n" + e.getMessage();
 			} finally{
-				if (contentModelBean == null){
-					contentModelBean = new LabTestsSearchResultsBean();
-					contentModelBean.setErrorCode(errorCode);
-					contentModelBean.setErrorDescription(errorDescription);
+				if (labDetailsResultBean == null){
+					labDetailsResultBean = new LabDetailsResultBean();
+					labDetailsResultBean.setErrorCode(errorCode);
+					labDetailsResultBean.setErrorDescription(errorDescription);
 					
 					httpServletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 				}else{
-					httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+					if(StringUtils.isEmpty(labDetailsResultBean.getErrorCode())){
+						httpServletResponse.setStatus(HttpServletResponse.SC_OK);
+					}else{
+						httpServletResponse.setStatus(Integer.parseInt(labDetailsResultBean.getErrorCode()));
+					}
 				}
 			}
 		}
 
 		traceLogger.info("Inside DiscoveryServiceController.getLabDetails(). Total Time Taken --> {} milliseconds", (System.currentTimeMillis() - startTimestamp));
 		
-		return contentModelBean;
+		return labDetailsResultBean;
 	}
 
 	public LabTestsCacheFactory getLabTestsCacheFactory() {

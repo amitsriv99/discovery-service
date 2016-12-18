@@ -38,7 +38,7 @@
     </logger>
 
     <logger name="com.labizy.services.content.AppLogger">
-        <level value="DEBUG" />
+        <level value="WARN" />
         <appender-ref ref="AppLogger"/>
     </logger>
 

@@ -13,8 +13,14 @@ import org.springframework.util.StringUtils;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.labizy.services.content.beans.LabBean;
+import com.labizy.services.content.beans.LabDetailsBean;
+import com.labizy.services.content.beans.LabDetailsResultBean;
 import com.labizy.services.content.beans.LabTestBean;
+import com.labizy.services.content.beans.LabTestDetailsBean;
+import com.labizy.services.content.beans.LabTestDetailsResultBean;
 import com.labizy.services.content.beans.LabTestsSearchResultsBean;
+import com.labizy.services.content.beans.LabsSearchResultsBean;
 import com.labizy.services.content.beans.SearchCriteriaBean;
 import com.labizy.services.content.beans.SearchResultsSummaryBean;
 import com.labizy.services.content.exceptions.DiscoveryItemsNotFoundException;
@@ -34,7 +40,7 @@ public class LabsCacheFactory {
 
 	public LabsCacheFactory(int cacheMaxAgeInMinutes) {
 		if(logger.isInfoEnabled()){
-			logger.info("Inside IdentityOAuthCacheFactory c'tor");
+			logger.info("Inside LabsCacheFactory c'tor");
 		}
 
 		if((cacheMaxAgeInMinutes <= 0) || (cacheMaxAgeInMinutes > 60)){
@@ -49,15 +55,16 @@ public class LabsCacheFactory {
 		this.cacheStore = new WeakHashMap<String, LabsCacheFactory.CacheObject>();
 	}
 
-	public LabTestsSearchResultsBean getCachedObject(String cacheKey, String cacheKeyType, SearchCriteriaBean searchCriteriaBean) 
+	
+	public LabsSearchResultsBean getCachedObject(String cacheKey, String cacheKeyType, SearchCriteriaBean searchCriteriaBean) 
 									throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "LabTestsCacheFactory.getCachedObject(String)");
+			logger.debug("Inside {}", "LabsCacheFactory.getCachedObject(String, String, SearchCriteriaBean)");
 		}
 		
-		LabTestsSearchResultsBean labTestsSearchResultsBean = null;
+		LabsSearchResultsBean labsSearchResultsBean = null;
 		SearchResultsSummaryBean searchResultsSummaryBean = null;
-		ArrayList<LabTestBean> labTestsList = null;
+		ArrayList<LabBean> labsList = null;
 		CacheObject cacheObject = null;
 		
 		if(! StringUtils.isEmpty(cacheKey)){
@@ -71,15 +78,13 @@ public class LabsCacheFactory {
 				synchronized(this){
 					cacheObject = cacheStore.get(cacheKey);
 					if(cacheObject == null){
-						labTestsList = loadLabTestsBean(cacheKeyType);
+						labsList = loadLabsBean(cacheKeyType);
 
-						cacheObject = new CacheObject(labTestsList);
-						cacheStore.put(cacheKey, cacheObject);
-						
-						for (LabTestBean labTestsBean : labTestsList) {
-							cacheObject = new CacheObject(labTestsBean);
-							cacheStore.put(labTestsBean.getId(), cacheObject);
+						if(logger.isDebugEnabled()){
+							logger.debug("Setting {} Lab Tests in the cache store..", ((labsList == null) ? 0 : labsList.size()));
 						}
+						cacheObject = new CacheObject(labsList);
+						cacheStore.put(cacheKey, cacheObject);
 					}
 				}
 			} else if((System.currentTimeMillis() - cacheObject.birthTimestamp) > this.maxAge){
@@ -91,28 +96,24 @@ public class LabsCacheFactory {
 					cacheObject = cacheStore.get(cacheKey);
 					if((System.currentTimeMillis() - cacheObject.birthTimestamp) > this.maxAge){
 						cacheStore.remove(cacheKey);
-	
-						cacheObject = new CacheObject(labTestsList);
-						cacheStore.put(cacheKey, cacheObject);
+						labsList = loadLabsBean(cacheKeyType);
 						
-						for (LabTestBean labTestsBean : labTestsList) {
-							cacheObject = new CacheObject(labTestsBean);
-							if(cacheStore.containsKey(labTestsBean.getId())){
-								cacheStore.remove(labTestsBean.getId());
-							}else{
-								cacheStore.put(labTestsBean.getId(), cacheObject);
-							}
-						}
+						cacheObject = new CacheObject(labsList);
+						cacheStore.put(cacheKey, cacheObject);
 					}
 				}
 			} else{
-				//Do nothing
+				labsList = cacheStore.get(cacheKey).labsList;
 				if(logger.isInfoEnabled()){
 					logger.info("Cache store has a valid item for cache key : {}", cacheKey);
 				}
 			}
 
-			labTestsSearchResultsBean = new LabTestsSearchResultsBean();
+			if(logger.isDebugEnabled()){
+				logger.debug("Setting the {} bean", "LabsSearchResultsBean");
+			}
+			
+			labsSearchResultsBean = new LabsSearchResultsBean();
 			searchResultsSummaryBean = new SearchResultsSummaryBean();
 			
 			if(searchCriteriaBean != null){
@@ -121,8 +122,8 @@ public class LabsCacheFactory {
 				searchResultsSummaryBean.setSortBy(searchCriteriaBean.getSortBy());
 			}
 
-			if(cacheObject.labTestsList != null){
-				int sizeOfList = cacheObject.labTestsList.size();
+			if(labsList != null){
+				int sizeOfList = labsList.size();
 				searchResultsSummaryBean.setNumberOfRecordsReturned(Integer.toString(sizeOfList));
 				searchResultsSummaryBean.setTotalNumberOfRecordsFound(Integer.toString(sizeOfList));
 			}else{
@@ -130,36 +131,103 @@ public class LabsCacheFactory {
 				searchResultsSummaryBean.setTotalNumberOfRecordsFound(Integer.toString(0));
 			}
 			
-			labTestsSearchResultsBean.setResultSummary(searchResultsSummaryBean);
-			labTestsSearchResultsBean.setLabTests(cacheObject.labTestsList);
+			labsSearchResultsBean.setResultSummary(searchResultsSummaryBean);
+			labsSearchResultsBean.setLabs(labsList);
 		}else{
 			throw new DiscoveryItemsNotFoundException();
 		}
 		
-		return labTestsSearchResultsBean;
+		return labsSearchResultsBean;
 	}
 
-	private ArrayList<LabTestBean> loadLabTestsBean(String cacheKeyType) 
-								throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
+	public LabDetailsResultBean getCachedObject(String cacheKey, String cacheKeyType) 
+										throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		
 		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "LabTestsCacheFactory.getHomepageContentModelBean(String)");
+			logger.debug("Inside {}", "LabsCacheFactory.getCachedObject(String, String)");
+		}
+		
+		LabDetailsResultBean labDetailsResultBean = null;
+		CacheObject cacheObject = null;
+		
+		if(! StringUtils.isEmpty(cacheKey)){
+			cacheObject = cacheStore.get(cacheKey);
+			
+			if(cacheObject == null){
+				if(logger.isInfoEnabled()){
+				logger.info("Cache store was empty for cache key : {}", cacheKey);
+				}
+				
+				synchronized(this){
+					cacheObject = cacheStore.get(cacheKey);
+					if(cacheObject == null){
+						labDetailsResultBean = loadLabDetailsBean(cacheKey);
+						
+						if(logger.isDebugEnabled()){
+							logger.debug("Storing Lab --> LabId: {} in the cache store..", labDetailsResultBean.getLabDetails().getLabId());
+						}
+						cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
+						cacheStore.put(cacheKey, cacheObject);
+					}
+				}
+			} else if((System.currentTimeMillis() - cacheObject.birthTimestamp) > this.maxAge){
+				if(logger.isInfoEnabled()){
+					logger.info("Cache store has expired the cache key : {}", cacheKey);
+				}
+				
+				synchronized(this){
+					cacheObject = cacheStore.get(cacheKey);
+					if((System.currentTimeMillis() - cacheObject.birthTimestamp) > this.maxAge){
+						cacheStore.remove(cacheKey);
+	
+						labDetailsResultBean = loadLabDetailsBean(cacheKey);
+
+						if(logger.isDebugEnabled()){
+							logger.debug("Storing Lab --> LabId: {} in the cache store..", labDetailsResultBean.getLabDetails().getLabId());
+						}
+						cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
+						cacheStore.put(cacheKey, cacheObject);
+					}
+				}
+			} else{
+				//Do nothing
+				if(logger.isInfoEnabled()){
+					logger.info("Cache store has a valid item for cache key : {}", cacheKey);
+				}
+				
+				labDetailsResultBean = new LabDetailsResultBean();
+				labDetailsResultBean.setLabDetails(cacheStore.get(cacheKey).labDetailsBean);			
+			}
+		}else{
+			throw new DiscoveryItemsNotFoundException();
 		}
 
-		ArrayList<LabTestBean> labTestsList = null;
-		LabTestsSearchResultsBean labTests = null;
+		return labDetailsResultBean;
+	}
+	
+	private LabDetailsResultBean loadLabDetailsBean(String cacheKey) 
+							throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
+		if(logger.isDebugEnabled()){
+			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String)");
+		}
+		
+		LabDetailsResultBean labDetailsResultBean = null;
 
 		String contentRepository = System.getProperty("labtests.discovery.repository");
-		File afile = new File(contentRepository + File.separator + "labtests-discovery.json");
+		File afile = new File(contentRepository + File.separator + "details" + File.separator + "labs" + File.separator + (cacheKey + ".json"));
 		
 		if(! afile.exists()){
 			throw new DiscoveryItemsNotFoundException(afile.getAbsolutePath() + " not found..");
+		}
+
+		if(logger.isDebugEnabled()){
+			logger.debug("Loading Lab Tests from {}", afile.getAbsoluteFile());
 		}
 		
 		ObjectMapper mapper = new ObjectMapper();
 		
 		try {
-			labTests = mapper.readValue(afile, LabTestsSearchResultsBean.class);
+			labDetailsResultBean = mapper.readValue(afile, LabDetailsResultBean.class);
 		} catch (JsonParseException e) {
 			throw new DiscoveryItemsProcessingException(e);
 		} catch (JsonMappingException e) {
@@ -168,27 +236,74 @@ public class LabsCacheFactory {
 			throw new DiscoveryItemsProcessingException(e);
 		}
 		
-		if(labTests == null){
-			throw new DiscoveryItemsProcessingException("Failed to fetch lab tests from " + afile.getAbsolutePath());
+		if(labDetailsResultBean == null){
+			throw new DiscoveryItemsProcessingException("Failed to fetch labs from " + afile.getAbsolutePath());
 		}else{
-			labTestsList = labTests.getLabTests();
+			if(logger.isDebugEnabled()){
+				logger.debug("Loaded Lab --> LabId : {}", labDetailsResultBean.getLabDetails().getLabId());
+			}
 		}
 
-		return labTestsList;
+		return labDetailsResultBean;
+	}
+	
+	private ArrayList<LabBean> loadLabsBean(String cacheKeyType) 
+								throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
+		
+		if(logger.isDebugEnabled()){
+			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String)");
+		}
+
+		ArrayList<LabBean> labsList = null;
+		LabsSearchResultsBean labs = null;
+
+		String contentRepository = System.getProperty("labtests.discovery.repository");
+		File afile = new File(contentRepository + File.separator + "labs-discovery.json");
+		
+		if(! afile.exists()){
+			throw new DiscoveryItemsNotFoundException(afile.getAbsolutePath() + " not found..");
+		}
+
+		if(logger.isDebugEnabled()){
+			logger.debug("Loading Lab Tests from {}", afile.getAbsoluteFile());
+		}
+		
+		ObjectMapper mapper = new ObjectMapper();
+		
+		try {
+			labs = mapper.readValue(afile, LabsSearchResultsBean.class);
+		} catch (JsonParseException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		} catch (JsonMappingException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		} catch (IOException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		}
+		
+		if(labs == null){
+			throw new DiscoveryItemsProcessingException("Failed to fetch labs from " + afile.getAbsolutePath());
+		}else{
+			labsList = labs.getLabs();
+			if(logger.isDebugEnabled()){
+				logger.debug("Loaded {} Lab Tests", ((labsList == null) ? 0 : labsList.size()));
+			}
+		}
+
+		return labsList;
 	}
 	
     private class CacheObject{
 		private long birthTimestamp;
-		private LabTestBean labTestsBean;
-		private ArrayList<LabTestBean> labTestsList;
+		private LabDetailsBean labDetailsBean;
+		private ArrayList<LabBean> labsList;
 		
-		public CacheObject(ArrayList<LabTestBean> labTestsList){
-			this.labTestsList = labTestsList;
+		public CacheObject(ArrayList<LabBean> labsList){
+			this.labsList = labsList;
 			this.birthTimestamp = System.currentTimeMillis();
 		}
 		
-		public CacheObject(LabTestBean labTestsBean){
-			this.labTestsBean = labTestsBean;
+		public CacheObject(LabDetailsBean labDetailsBean){
+			this.labDetailsBean = labDetailsBean;
 			this.birthTimestamp = commonUtils.getInfinityTimestamp();
 		}
 	}

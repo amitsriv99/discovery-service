@@ -36,7 +36,7 @@ public class LabTestsCacheFactory {
 
 	public LabTestsCacheFactory(int cacheMaxAgeInMinutes) {
 		if(logger.isInfoEnabled()){
-			logger.info("Inside IdentityOAuthCacheFactory c'tor");
+			logger.info("Inside LabTestsCacheFactory c'tor");
 		}
 
 		if((cacheMaxAgeInMinutes <= 0) || (cacheMaxAgeInMinutes > 60)){
@@ -98,7 +98,8 @@ public class LabTestsCacheFactory {
 					}
 				}
 			} else{
-				//Do nothing
+				labTestsList = cacheStore.get(cacheKey).labTestsList;
+				
 				if(logger.isInfoEnabled()){
 					logger.info("Cache store has a valid item for cache key : {}", cacheKey);
 				}
@@ -117,8 +118,8 @@ public class LabTestsCacheFactory {
 				searchResultsSummaryBean.setSortBy(searchCriteriaBean.getSortBy());
 			}
 
-			if(cacheStore.get(cacheKey).labTestsList != null){
-				int sizeOfList = cacheStore.get(cacheKey).labTestsList.size();
+			if(labTestsList != null){
+				int sizeOfList = labTestsList.size();
 				searchResultsSummaryBean.setNumberOfRecordsReturned(Integer.toString(sizeOfList));
 				searchResultsSummaryBean.setTotalNumberOfRecordsFound(Integer.toString(sizeOfList));
 			}else{
@@ -127,7 +128,7 @@ public class LabTestsCacheFactory {
 			}
 			
 			labTestsSearchResultsBean.setResultSummary(searchResultsSummaryBean);
-			labTestsSearchResultsBean.setLabTests(cacheStore.get(cacheKey).labTestsList);
+			labTestsSearchResultsBean.setLabTests(labTestsList);
 		}else{
 			throw new DiscoveryItemsNotFoundException();
 		}
