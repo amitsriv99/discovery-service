@@ -4,9 +4,12 @@ import java.text.MessageFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.slf4j.Logger;
@@ -15,13 +18,16 @@ import org.springframework.util.StringUtils;
 
 import com.labizy.services.content.beans.PropertiesBean;
 import com.labizy.services.content.beans.SupportedEnvironsBean;
+import com.labizy.services.content.builder.PropertiesBuilder;
 import com.labizy.services.content.exceptions.EnvironNotDefPropertiesBuilderException;
 
 public class CommonUtils {
 	private static Logger logger = LoggerFactory.getLogger("com.labizy.services.content.AppLogger");
 	
 	private static Date infinityDate = null;
-	
+	private static SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy");
+	private static SimpleDateFormat simpleDateTimeFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:SS");
+
 	static{
         SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy");
         try {
@@ -52,6 +58,28 @@ public class CommonUtils {
 		return infinityDate.getTime();
 	}
 	
+	public final String getCurrentTimestampAsString(){
+		return simpleDateTimeFormat.format(new java.util.Date(System.currentTimeMillis()));
+	}
+	
+	public final String getTimestampAsDateString(java.sql.Timestamp timestamp, boolean onlyDatePart){
+		if(timestamp == null){
+			return null;
+		}
+		
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTimeInMillis(timestamp.getTime());
+		
+		return ((onlyDatePart) ? simpleDateFormat.format(calendar.getTime()) : simpleDateTimeFormat.format(calendar.getTime()));
+	}
+	
+	public final java.sql.Timestamp getCurrentDateTimeAsSqlTimestamp(){
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTimeInMillis(System.currentTimeMillis());
+		
+		return new java.sql.Timestamp(calendar.getTimeInMillis());
+	}
+
 	public final String getUniqueGeneratedId(String prefix, String suffix){
 		if(logger.isDebugEnabled()){
 			logger.debug("Inside UniqueIdGenerator.getUniqueGeneratedId() method..");
@@ -116,4 +144,28 @@ public class CommonUtils {
 		
 		return environ;
 	} 
+	
+	public static void main (String[] args){
+	    System.setProperty("environ", "local");
+
+		PropertiesBuilder propertiesBuilder = new PropertiesBuilder();
+		
+		PropertiesBean commonProperties = new PropertiesBean();
+		Set<String> supportedEnvirons = new HashSet<String>();
+		supportedEnvirons.add("local");
+		supportedEnvirons.add("prod");
+		supportedEnvirons.add("ppe");
+		commonProperties.setSupportedEnvirons(supportedEnvirons);
+		commonProperties.setEnvironSystemPropertyName("environ");
+		propertiesBuilder.setCommonProperties(commonProperties);
+		
+		CommonUtils commonUtils = new CommonUtils();
+		propertiesBuilder.setCommonUtils(commonUtils);
+		commonUtils.setCommonProperties(commonProperties);
+
+		commonUtils.setSeed(1L);
+		
+		String uniqueId = commonUtils.getUniqueGeneratedId("LAB", "");
+		System.out.println("Unique Id : " + uniqueId);
+	}	
 }

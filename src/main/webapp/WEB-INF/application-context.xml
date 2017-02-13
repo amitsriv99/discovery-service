@@ -12,6 +12,19 @@
 		
 		<bean id="CommonProperties" class="com.labizy.services.content.beans.PropertiesBean">
 			<property name="environSystemPropertyName" value="environ"/>
+			<property name="supportedEnvirons">
+				<set>
+					<value>local</value>
+					<value>prod</value>
+					<value>lnp</value>
+					<value>ppe</value>
+					<value>test</value>
+				</set>
+			</property>
+		</bean>
+		
+		<bean id="CommonProperties" class="com.labizy.services.content.beans.PropertiesBean">
+			<property name="environSystemPropertyName" value="environ"/>
 		</bean>
 		
 		<bean id="CommonUtils" class="com.labizy.services.content.utils.CommonUtils">
@@ -19,11 +32,21 @@
 			<property name="seed" value="-1"/>
 		</bean>
 		
-		<bean id="LocalProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
+		<bean id="LocalProperties" class="com.labizy.services.content.beans.PropertiesBean">
+			<property name="databaseDriver" value="com.mysql.jdbc.Driver"/>
+			<property name="databaseUrl" value="jdbc:mysql://localhost:3306/{0}"/>
+			<property name="databaseUser" value="bGFiaXp5X3VzZXI="/>
+			<property name="databasePassword" value="bGFiaXp5X3VzZXIwMDc="/>
+		</bean>
 		<bean id="TestProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
 		<bean id="PPEProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
 		<bean id="LnPProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
-		<bean id="ProdProperties" class="com.labizy.services.content.beans.PropertiesBean"/>
+		<bean id="ProdProperties" class="com.labizy.services.content.beans.PropertiesBean">
+			<property name="databaseDriver" value="com.mysql.jdbc.Driver"/>
+			<property name="databaseUrl" value="jdbc:mysql://localhost:3306/{0}"/>
+			<property name="databaseUser" value="bGFiaXp5X3VzZXI="/>
+			<property name="databasePassword" value="bGFiaXp5X3VzZXIwMDc="/>
+		</bean>
 		
 		<bean id="PropertiesBuilder" class="com.labizy.services.content.builder.PropertiesBuilder">
 			<property name="commonProperties" ref="CommonProperties"/>
@@ -35,16 +58,38 @@
 			<property name="commonUtils" ref="CommonUtils"/>
 		</bean>
 		
+		<bean id="EncryptionDecryptionUtils" class="com.labizy.services.content.utils.EncryptionDecryptionUtils"/>
+
+		<bean id="DatabaseConnection" class="com.labizy.services.content.dao.util.DatabaseConnection">
+			<property name="propertiesBuilder" ref="PropertiesBuilder"/>
+			<property name="encryptionDecryptionUtils" ref="EncryptionDecryptionUtils"/>
+		</bean>
+		
+		<bean id="ProductLabsDatabaseName" class="java.lang.String"><constructor-arg value="labizy_product_labs_db" /></bean>
+		<bean id="ProductLabsDaoManager" class="com.labizy.services.content.dao.manager.ProductLabsDaoManager">
+			<property name="commonUtils" ref="CommonUtils"/>
+			<property name="databaseName" ref="ProductLabsDatabaseName"/>
+			<property name="databaseConnection" ref="DatabaseConnection"/>
+			<property name="encryptionDecryptionUtils" ref="EncryptionDecryptionUtils"/>
+		</bean>
+
+		<bean id="ProductLabsDaoAdapter" class="com.labizy.services.content.dao.adapter.ProductLabsDaoAdapter">
+			<property name="productLabsDaoManager" ref="ProductLabsDaoManager"/>
+			<property name="commonUtils" ref="CommonUtils"/>
+		</bean>
+		
 		<bean id="LabTestsCacheFactory" class="com.labizy.services.content.utils.LabTestsCacheFactory">
 			<!-- The constructor-arg is cache expiry age in minutes.. -->
 			<constructor-arg type="int" value="60"/>
 			<property name="commonUtils" ref="CommonUtils"/>
+			<property name="productLabsDaoAdapter" ref="ProductLabsDaoAdapter"/>
 		</bean>
 
 		<bean id="LabsCacheFactory" class="com.labizy.services.content.utils.LabsCacheFactory">
 			<!-- The constructor-arg is cache expiry age in minutes.. -->
 			<constructor-arg type="int" value="60"/>
 			<property name="commonUtils" ref="CommonUtils"/>
+			<property name="productLabsDaoAdapter" ref="ProductLabsDaoAdapter"/>
 		</bean>
 		
 		<bean id="DiscoveryServiceController" class="com.labizy.services.content.DiscoveryServiceController">

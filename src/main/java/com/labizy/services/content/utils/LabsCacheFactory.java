@@ -23,6 +23,7 @@ import com.labizy.services.content.beans.LabTestsSearchResultsBean;
 import com.labizy.services.content.beans.LabsSearchResultsBean;
 import com.labizy.services.content.beans.SearchCriteriaBean;
 import com.labizy.services.content.beans.SearchResultsSummaryBean;
+import com.labizy.services.content.dao.adapter.ProductLabsDaoAdapter;
 import com.labizy.services.content.exceptions.DiscoveryItemsNotFoundException;
 import com.labizy.services.content.exceptions.DiscoveryItemsProcessingException;
 
@@ -32,8 +33,13 @@ public class LabsCacheFactory {
 	private long maxAge;
 	private Map<String, LabsCacheFactory.CacheObject> cacheStore;
 	
+	private ProductLabsDaoAdapter productLabsDaoAdapter;
 	private CommonUtils commonUtils;
 	
+	public void setProductLabsDaoAdapter(ProductLabsDaoAdapter productLabsDaoAdapter) {
+		this.productLabsDaoAdapter = productLabsDaoAdapter;
+	}
+
 	public void setCommonUtils(CommonUtils commonUtils) {
 		this.commonUtils = commonUtils;
 	}

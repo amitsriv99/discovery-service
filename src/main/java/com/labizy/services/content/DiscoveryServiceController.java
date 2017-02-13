@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.labizy.services.content.beans.LabDetailsResultBean;
-import com.labizy.services.content.beans.LabTestBean;
 import com.labizy.services.content.beans.LabTestDetailsResultBean;
 import com.labizy.services.content.beans.LabTestsSearchResultsBean;
 import com.labizy.services.content.beans.LabsSearchResultsBean;
