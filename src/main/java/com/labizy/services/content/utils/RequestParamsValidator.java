@@ -5,7 +5,7 @@ import org.springframework.util.StringUtils;
 public class RequestParamsValidator {
 
 	public boolean validateBoolean(String paramName, String paramValue){
-		boolean validatedParamValue = false;
+		boolean validatedParamValue = true;
 		
 		if(Constants.IS_LENIENT_PARAM.equalsIgnoreCase(paramName)){
 			try{

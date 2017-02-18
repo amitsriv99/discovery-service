@@ -81,8 +81,11 @@ public class LabsCacheFactory {
 							if(logger.isDebugEnabled()){
 								logger.debug("Setting {} Lab Tests in the cache store..", ((labsList == null) ? 0 : labsList.size()));
 							}
-							cacheObject = new CacheObject(labsList);
-							cacheStore.put(cacheKey, cacheObject);
+							
+							if((labsList != null) && (labsList.size() > 0)){
+								cacheObject = new CacheObject(labsList);
+								cacheStore.put(cacheKey, cacheObject);
+							}
 						}
 					}
 				}
@@ -99,7 +102,9 @@ public class LabsCacheFactory {
 						
 						//Don't cache if the search is by geo locations.. You can't cache the millions and millions of such combinations..
 						if((searchCriteriaBean.getLatitude() != -1) || (searchCriteriaBean.getLongitude() != -1)){						cacheObject = new CacheObject(labsList);
-							cacheStore.put(cacheKey, cacheObject);
+							if((labsList != null) && (labsList.size() > 0)){
+								cacheStore.put(cacheKey, cacheObject);
+							}
 						}
 					}
 				}
@@ -167,8 +172,11 @@ public class LabsCacheFactory {
 						if(logger.isDebugEnabled()){
 							logger.debug("Storing Lab --> LabId: {} in the cache store..", labDetailsResultBean.getLabDetails().getLabId());
 						}
-						cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
-						cacheStore.put(cacheKey, cacheObject);
+						
+						if(labDetailsResultBean != null){
+							cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
+							cacheStore.put(cacheKey, cacheObject);
+						}
 					}
 				}
 			} else if((System.currentTimeMillis() - cacheObject.birthTimestamp) > this.maxAge){
@@ -186,8 +194,11 @@ public class LabsCacheFactory {
 						if(logger.isDebugEnabled()){
 							logger.debug("Storing Lab --> LabId: {} in the cache store..", labDetailsResultBean.getLabDetails().getLabId());
 						}
-						cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
-						cacheStore.put(cacheKey, cacheObject);
+
+						if(labDetailsResultBean != null){
+							cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
+							cacheStore.put(cacheKey, cacheObject);
+						}
 					}
 				}
 			} else{
@@ -221,7 +232,7 @@ public class LabsCacheFactory {
 								throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		
 		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String)");
+			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String, SearchCriteriaBean)");
 		}
 
 		List<LabDetailsBean> labsList = productLabsDaoAdapter.loadLabDetailsBean(searchCriteriaBean);

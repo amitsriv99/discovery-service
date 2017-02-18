@@ -12,6 +12,9 @@ import org.springframework.util.StringUtils;
 import com.labizy.services.content.beans.GeoLocationBean;
 import com.labizy.services.content.beans.LabDetailsBean;
 import com.labizy.services.content.beans.LabDetailsResultBean;
+import com.labizy.services.content.beans.LabTestDetailsBean;
+import com.labizy.services.content.beans.LabTestDetailsResultBean;
+import com.labizy.services.content.beans.ImageBean;
 import com.labizy.services.content.beans.SearchCriteriaBean;
 import com.labizy.services.content.dao.manager.ProductLabsDaoManager;
 import com.labizy.services.content.exceptions.DataNotFoundException;
@@ -129,35 +132,35 @@ public class ProductLabsDaoAdapter {
 			}
 			
 			if(entry.getKey().equals("mediumSizeImage1Url")){
-				labDetailsBean.setMediumSizeImage1Url(entry.getValue());
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labDetailsMap.get("mediumSizeImage1Text"));
+
+				labDetailsBean.setMediumSizeImage1Url(imageBean);
 			}
-			
-			if(entry.getKey().equals("mediumSizeImage1Text")){
-				labDetailsBean.setMediumSizeImage1Text(entry.getValue());
-			}
-			
+
 			if(entry.getKey().equals("mediumSizeImage2Url")){
-				labDetailsBean.setMediumSizeImage2Url(entry.getValue());
-			}
-			
-			if(entry.getKey().equals("mediumSizeImage2Text")){
-				labDetailsBean.setMediumSizeImage2Text(entry.getValue());
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labDetailsMap.get("mediumSizeImage2Text"));
+
+				labDetailsBean.setMediumSizeImage2Url(imageBean);
 			}
 
 			if(entry.getKey().equals("mediumSizeImage3Url")){
-				labDetailsBean.setMediumSizeImage3Url(entry.getValue());
-			}
-			
-			if(entry.getKey().equals("mediumSizeImage3Text")){
-				labDetailsBean.setMediumSizeImage3Text(entry.getValue());
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labDetailsMap.get("mediumSizeImage3Text"));
+
+				labDetailsBean.setMediumSizeImage3Url(imageBean);
 			}
 
 			if(entry.getKey().equals("largeSizeImageUrl")){
-				labDetailsBean.setLargeSizeImageUrl(entry.getValue());
-			}
-			
-			if(entry.getKey().equals("largeSizeImageText")){
-				labDetailsBean.setLargeSizeImageText(entry.getValue());
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labDetailsMap.get("largeSizeImageText"));
+
+				labDetailsBean.setLargeSizeImage(imageBean);
 			}
 		}
 		
@@ -233,226 +236,204 @@ public class ProductLabsDaoAdapter {
 		
 		return labDetailsResultBean;
 	}
-	
-	/*
-	public UserProfileDetailsResultBean getUserProfileDetails(String userId, boolean isPrimaryProfile) throws ServiceException, UserDoesNotExistException {
-		UserProfileDetailsResultBean userProfileDetailsResultBean = null;
-		
-		if(appLogger.isDebugEnabled()){
-			appLogger.debug("Inside {}", "ProductLabsDaoAdapter.getUserProfileDetails()");
-		}
-		
-		if(appLogger.isInfoEnabled()){
-			appLogger.info("Retrieving Profile of UserId : {}", userId);
-		}
 
-		try {
-			if(appLogger.isDebugEnabled()){
-				appLogger.debug("Fetching User Profile Info..");
-			}
-			Map<String, String> userProfileMap = productLabsDaoManager.getUserProfileDetails(userId, isPrimaryProfile, null);
-			userProfileDetailsResultBean = new UserProfileDetailsResultBean();
-			UserProfileBean userProfileBean = getUserProfileDetails(userProfileMap);
-			userProfileDetailsResultBean.setUserProfile(userProfileBean);
-			
-			UserCredentialsBean userLoginCredentialsBean = getUserLoginDetails(userProfileMap);
-			userProfileDetailsResultBean.setUserLogin(userLoginCredentialsBean);
+	private LabTestDetailsBean getLabTestDetails(Map<String, String> labTestDetailsMap){
+		LabTestDetailsBean labTestDetailsBean = new LabTestDetailsBean();
 
-			if(appLogger.isDebugEnabled()){
-				appLogger.debug("Fetching User Contact Info..");
+		for(Map.Entry<String, String> entry : labTestDetailsMap.entrySet()){
+			if(entry.getKey().equals("productId")){
+				labTestDetailsBean.setId(entry.getValue());
 			}
-			List<Map<String, String>> contactList = productLabsDaoManager.getUserContactDetails(userId);
-			UserContactsDetailsBean userContactsDetailsBean = getUserContactDetails(contactList);
-			userProfileDetailsResultBean.setContactDetails(userContactsDetailsBean);
-			
-			if(appLogger.isDebugEnabled()){
-				appLogger.debug("Fetching User Address Info..");
-			}
-			List<Map<String, String>> addressList = productLabsDaoManager.getUserAddressDetails(userId);
-			UserAddressDetailsBean userAddressDetailsBean = getUserAddressDetails(addressList);
-			userProfileDetailsResultBean.setAddressDetails(userAddressDetailsBean);
 
-		} catch (DataNotFoundException e) {
-			appLogger.error(e.getMessage());
-			throw new UserDoesNotExistException(e);
-		} catch (QueryExecutionException e) {
-			appLogger.error(e.getMessage());
-			throw new ServiceException(e);
-		} catch (DatabaseConnectionException e) {
-			appLogger.error(e.getMessage());
-			throw new ServiceException(e);
-		}
-		
-		return userProfileDetailsResultBean;
-	}
+			if(entry.getKey().equals("name")){
+				labTestDetailsBean.setName(entry.getValue());
+			}
 
-	private UserProfileBean getUserProfileDetails(Map<String, String> userProfileMap) {
-		UserProfileBean userProfileBean = new UserProfileBean();
-		for(Map.Entry<String, String> entry : userProfileMap.entrySet()){
-			if(entry.getKey().equals("userId")){
-				userProfileBean.setUserId(entry.getValue());
+			if(entry.getKey().equals("type")){
+				labTestDetailsBean.setType(entry.getValue());
 			}
-			if(entry.getKey().equals("title")){
-				userProfileBean.setTitle(entry.getValue());
-			}
-			if(entry.getKey().equals("firstName")){
-				userProfileBean.setFirstName(entry.getValue());
-			}
-			if(entry.getKey().equals("middleName")){
-				userProfileBean.setMiddleName(entry.getValue());
-			}
-			if(entry.getKey().equals("lastName")){
-				userProfileBean.setLastName(entry.getValue());
-			}
-			if(entry.getKey().equals("sex")){
-				userProfileBean.setSex(entry.getValue());
-			}
-			if(entry.getKey().equals("dateOfBirth")){
-				userProfileBean.setDateOfBirth(entry.getValue());
-			}
-			if(entry.getKey().equals("maritalStatus")){
-				userProfileBean.setMaritalStatus(entry.getValue());
-			}
-			if(entry.getKey().equals("profilePictureUrl")){
-				userProfileBean.setProfilePicture(entry.getValue());
-			}
-			if(entry.getKey().equals("isPrimaryProfile")){
-				userProfileBean.setTitle(entry.getValue());
-			}
-		}
 
-		return userProfileBean;
-	}
-
-	private UserCredentialsBean getUserLoginDetails(Map<String, String> userProfileMap){
-		UserCredentialsBean userLoginCredentialsBean = new UserCredentialsBean();
-		
-		for(Map.Entry<String, String> entry : userProfileMap.entrySet()){
-			if(entry.getKey().equals("emailId")){
-				userLoginCredentialsBean.setEmailId(entry.getValue());
+			if(entry.getKey().equals("subType")){
+				labTestDetailsBean.setSubType(entry.getValue());
 			}
+
+			if(entry.getKey().equals("shortDescription")){
+				labTestDetailsBean.setShortDescription(entry.getValue());
+			}
+
+			if(entry.getKey().equals("searchTags")){
+				labTestDetailsBean.setTags(entry.getValue());
+			}
+
 			if(entry.getKey().equals("status")){
-				userLoginCredentialsBean.setStatus(entry.getValue());
+				labTestDetailsBean.setStatus(entry.getValue());
 			}
-			/*
-			if(entry.getKey().equals("password")){
-				userLoginCredentialsBean.setPassword(entry.getValue());
-			}
-			*/
-/*		}
-		
-		return userLoginCredentialsBean;
-	}
-	
-	private UserAddressDetailsBean getUserAddressDetails(List<Map<String, String>> addressList) {
-		ArrayList<UserAddressBean> userAddressList = new ArrayList<UserAddressBean>(); 
-		
-		for (Map<String, String> addressMap : addressList) {
-			UserAddressBean userAddressBean = new UserAddressBean(); 
-			for(Map.Entry<String, String> entry : addressMap.entrySet()){
-				if(entry.getKey().equals("addressId")){
-					userAddressBean.setAddressId(entry.getValue());
-				}
-				if(entry.getKey().equals("houseOrFlatNumber")){
-					userAddressBean.setHouseOrFlatNumber(entry.getValue());
-				}
-				if(entry.getKey().equals("houseOrApartmentName")){
-					userAddressBean.setHouseOrApartmentName(entry.getValue());
-				}
-				if(entry.getKey().equals("streetAddress")){
-					userAddressBean.setStreetAddress(entry.getValue());
-				}
-				if(entry.getKey().equals("localityName")){
-					userAddressBean.setLocalityName(entry.getValue());
-				}
-				if(entry.getKey().equals("cityTownOrVillage")){
-					userAddressBean.setCity(entry.getValue());
-				}
-				if(entry.getKey().equals("state")){
-					userAddressBean.setState(entry.getValue());
-				}
-				if(entry.getKey().equals("country")){
-					userAddressBean.setCountry(entry.getValue());
-				}
-				if(entry.getKey().equals("pinCode")){
-					userAddressBean.setPinCode(entry.getValue());
-				}
-				if(entry.getKey().equals("landmark")){
-					userAddressBean.setLandmark(entry.getValue());
-				}
-				if(entry.getKey().equals("latitude")){
-					userAddressBean.setLatitude(entry.getValue());
-				}
-				if(entry.getKey().equals("longitude")){
-					userAddressBean.setLongitude(entry.getValue());
-				}
-				if(entry.getKey().equals("isPrimaryAddress")){
-					userAddressBean.setIsPrimaryAddress(entry.getValue());
-				}
-				if(entry.getKey().equals("isBillingAddress")){
-					userAddressBean.setIsBillingAddress(entry.getValue());
-				}
-			}
-			userAddressList.add(userAddressBean);
-		}
-		
-		UserAddressDetailsBean userAddressDetailsBean = new UserAddressDetailsBean();
-		userAddressDetailsBean.setAddressDetail(userAddressList);
-		
-		return userAddressDetailsBean;
-	}
 
-	private UserContactsDetailsBean getUserContactDetails(List<Map<String, String>> contactList) {
-		ArrayList<UserContactBean> userContactList = new ArrayList<UserContactBean>(); 
-		
-		for (Map<String, String> contactMap : contactList) {
-			UserContactBean userContactBean = new UserContactBean(); 
-			for(Map.Entry<String, String> entry : contactMap.entrySet()){
-				if(entry.getKey().equals("contactId")){
-					userContactBean.setContactId(entry.getValue());
+			if(entry.getKey().equals("isProduct")){
+				labTestDetailsBean.setIsProduct(entry.getValue());
+			}
+
+			if(entry.getKey().equals("isPackage")){
+				labTestDetailsBean.setIsPackage(entry.getValue());
+			}
+
+			if(entry.getKey().equals("isService")){
+				labTestDetailsBean.setIsService(entry.getValue());
+			}
+
+			if(entry.getKey().equals("thumbnailImageUrl")){
+				labTestDetailsBean.setThumbnailImageUrl(entry.getValue());
+			}
+
+			if(entry.getKey().equals("rank")){
+				labTestDetailsBean.setRank(entry.getValue());
+			}
+
+			if(entry.getKey().equals("freeText")){
+				labTestDetailsBean.setFreeText(entry.getValue());
+			}
+
+			if((entry.getKey().equals("aboutThisLine1Type")) || 
+					(entry.getKey().equals("aboutThisLine2Type")) || 
+							(entry.getKey().equals("aboutThisLine3Type"))){
+				String entryValue = entry.getValue();
+				
+				if("why?".equalsIgnoreCase(entryValue)){
+					labTestDetailsBean.setWhatDoesItMeasure(labTestDetailsMap.get("about_this_line1"));
 				}
-				if(entry.getKey().equals("contactType")){
-					userContactBean.setContactType(entry.getValue());
+				
+				if("what?".equalsIgnoreCase(entryValue)){
+					labTestDetailsBean.setWhatDoesItMeasure(labTestDetailsMap.get("about_this_line2"));
 				}
-				if(entry.getKey().equals("contactDetail")){
-					userContactBean.setContactDetail(entry.getValue());
-				}
-				if(entry.getKey().equals("isPrimaryContact")){
-					userContactBean.setIsPrimaryContact(entry.getValue());
+
+				if("how?".equalsIgnoreCase(entryValue)){
+					labTestDetailsBean.setWhatDoesItMeasure(labTestDetailsMap.get("about_this_line3"));
 				}
 			}
-			userContactList.add(userContactBean);
+
+			if(entry.getKey().equals("usefulTips")){
+				labTestDetailsBean.setWhatPrecautionsPreventionsToConsider(entry.getValue());
+			}
+
+			if(entry.getKey().equals("externalBlogUrl")){
+				labTestDetailsBean.setReadInFeaturedBlog(entry.getValue());
+			}
+
+			if(entry.getKey().equals("mediumSizeImage1Url")){
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labTestDetailsMap.get("mediumSizeImage1Text"));
+
+				labTestDetailsBean.setMediumSizeImage1Url(imageBean);
+			}
+
+			if(entry.getKey().equals("mediumSizeImage2Url")){
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labTestDetailsMap.get("mediumSizeImage2Text"));
+
+				labTestDetailsBean.setMediumSizeImage2Url(imageBean);
+			}
+
+			if(entry.getKey().equals("mediumSizeImage3Url")){
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labTestDetailsMap.get("mediumSizeImage3Text"));
+
+				labTestDetailsBean.setMediumSizeImage3Url(imageBean);
+			}
+
+			if(entry.getKey().equals("largeSizeImageUrl")){
+				ImageBean imageBean = new ImageBean();
+				imageBean.setImageUrl(entry.getValue());
+				imageBean.setAltText(labTestDetailsMap.get("largeSizeImageText"));
+
+				labTestDetailsBean.setLargeSizeImage(imageBean);
+			}
 		}
 		
-		UserContactsDetailsBean userContactsDetailsBean = new UserContactsDetailsBean();
-		userContactsDetailsBean.setContactDetail(userContactList);
-		
-		return userContactsDetailsBean;
+		return labTestDetailsBean;
 	}
 	
-	public void deleteUserAndProfile(String userId) throws ServiceException {
-		if(appLogger.isDebugEnabled()){
-			appLogger.debug("Inside {}", "ProductLabsDaoAdapter.deleteUserAndProfile()");
-		}
+	public List<LabTestDetailsBean> loadLabTestDetailsBean(SearchCriteriaBean searchCriteriaBean) 
+			throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
+
+		List<LabTestDetailsBean> results = null;
 		
 		try {
-			if(appLogger.isInfoEnabled()){
-				appLogger.info("Deleting UserId : {}", userId);
+			boolean isLooselyMatched = true;
+			Map<String, String> searchCriteriaMap = new HashMap<String, String>();
+		
+			if(searchCriteriaBean != null){
+				isLooselyMatched = searchCriteriaBean.isLenient();
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductSearchTags())){
+					searchCriteriaMap.put("searchTags", searchCriteriaBean.getProductSearchTags());
+				}
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductType())){
+					searchCriteriaMap.put("type", searchCriteriaBean.getProductType());
+				}
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductName())){
+					searchCriteriaMap.put("name", searchCriteriaBean.getProductName());
+				}
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductId())){
+					searchCriteriaMap.put("productId", searchCriteriaBean.getProductId());
+				}
 			}
-
-			productLabsDaoManager.deleteUser(userId);
+			
+			List<Map<String, String>> productDetailsList = productLabsDaoManager.searchProducts(searchCriteriaMap, isLooselyMatched);
+		
+			results = new ArrayList<LabTestDetailsBean>();
+			
+			if(appLogger.isInfoEnabled()){
+				appLogger.info(productDetailsList.toString());
+			}
+		
+			for (Map<String, String> resultMap : productDetailsList) {
+				LabTestDetailsBean labDetailsBean = getLabTestDetails(resultMap);
+				
+				results.add(labDetailsBean);
+			}
 		} catch (DataNotFoundException e) {
-			appLogger.warn(e.getMessage());
+			throw new DiscoveryItemsNotFoundException(e);
 		} catch (QueryExecutionException e) {
-			appLogger.error(e.getMessage());
-			throw new ServiceException(e);
+			throw new DiscoveryItemsProcessingException(e);
 		} catch (DatabaseConnectionException e) {
-			appLogger.error(e.getMessage());
-			throw new ServiceException(e);
+			throw new DiscoveryItemsProcessingException(e);
 		}
 		
-		return;
+		return results;
 	}
-*/
 
+	public LabTestDetailsResultBean loadLabTestDetailsBean(String productId)
+										throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
+		
+		LabTestDetailsResultBean labTestDetailsResultBean = null;
+		
+		Map<String, String> labTestDetailsMap =null;
+		
+		try {
+			labTestDetailsMap = productLabsDaoManager.getProductDetails(productId);
+			
+			if(appLogger.isInfoEnabled()){
+				appLogger.info(labTestDetailsMap.toString());
+			}
+			
+			LabTestDetailsBean labTestDetailsBean = getLabTestDetails(labTestDetailsMap);
+			
+			labTestDetailsResultBean = new LabTestDetailsResultBean();
+			labTestDetailsResultBean.setLabTestDetails(labTestDetailsBean);
+		} catch (DataNotFoundException e) {
+			throw new DiscoveryItemsNotFoundException(e);
+		} catch (QueryExecutionException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		} catch (DatabaseConnectionException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		}
+		
+		return labTestDetailsResultBean;
+	}
 }

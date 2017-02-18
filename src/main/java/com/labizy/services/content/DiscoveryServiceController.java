@@ -36,6 +36,85 @@ public class DiscoveryServiceController {
 	private LabTestsCacheFactory labTestsCacheFactory;
 	private LabsCacheFactory labsCacheFactory;
 
+	private SearchCriteriaBean getSearchCriteriaFromRequestParams(MultiValueMap<String, String> requestParams){
+		SearchCriteriaBean searchCriteriaBean = null;
+		if((requestParams != null) && (! requestParams.isEmpty())){
+			searchCriteriaBean = new SearchCriteriaBean();
+			RequestParamsValidator requestParamsValidator = new RequestParamsValidator();
+			
+			String offset = requestParams.getFirst(Constants.OFFSET_QUERY_PARAM);
+			searchCriteriaBean.setOffset(requestParamsValidator.validate(Constants.OFFSET_QUERY_PARAM, offset));
+			
+			String limit = requestParams.getFirst(Constants.LIMIT_QUERY_PARAM);
+			searchCriteriaBean.setLimit(requestParamsValidator.validate(Constants.LIMIT_QUERY_PARAM, limit));
+
+			String sortBy = requestParams.getFirst(Constants.SORT_BY_QUERY_PARAM);
+			searchCriteriaBean.setSortBy(requestParamsValidator.validate(Constants.SORT_BY_QUERY_PARAM, sortBy));
+
+			String productId = requestParams.getFirst(Constants.PRODUCT_ID_PARAM);
+			if(! StringUtils.isEmpty(productId)){
+				searchCriteriaBean.setProductId(productId);
+			}
+			
+			String productName = requestParams.getFirst(Constants.PRODUCT_NAME_PARAM);
+			if(! StringUtils.isEmpty(productName)){
+				searchCriteriaBean.setProductName(productName);
+			}
+
+			String productType = requestParams.getFirst(Constants.PRODUCT_TYPE_PARAM);
+			if(! StringUtils.isEmpty(productType)){
+				searchCriteriaBean.setProductType(productType);
+			}
+
+			String productSearchTags = requestParams.getFirst(Constants.PRODUCT_SEARCH_TAGS_PARAM);
+			if(! StringUtils.isEmpty(productSearchTags)){
+				searchCriteriaBean.setProductSearchTags(productSearchTags);
+			}
+			
+			String labId = requestParams.getFirst(Constants.LAB_ID_PARAM);
+			if(! StringUtils.isEmpty(labId)){
+				searchCriteriaBean.setLabId(labId);
+			}
+
+			String labName = requestParams.getFirst(Constants.LAB_NAME_PARAM);
+			if(! StringUtils.isEmpty(labName)){
+				searchCriteriaBean.setLabName(labName);
+			}
+
+			String labGroupName = requestParams.getFirst(Constants.LAB_GROUP_NAME_PARAM);
+			if(! StringUtils.isEmpty(labGroupName)){
+				searchCriteriaBean.setLabGroupName(labGroupName);
+			}
+			
+			String isLenient = requestParams.getFirst(Constants.IS_LENIENT_PARAM);
+			if(! StringUtils.isEmpty(isLenient)) {
+				searchCriteriaBean.setLenient(requestParamsValidator.validateBoolean(Constants.IS_LENIENT_PARAM, isLenient));
+			}else{
+				searchCriteriaBean.setLenient(true);
+			}
+			
+			float latitude = requestParamsValidator.validateGeoLocations(Constants.LATITUDE_PARAM, requestParams.getFirst(Constants.LATITUDE_PARAM));
+			if(latitude != -1){
+				searchCriteriaBean.setLatitude(latitude);
+			}
+
+			float longitude = requestParamsValidator.validateGeoLocations(Constants.LONGITUDE_PARAM, requestParams.getFirst(Constants.LONGITUDE_PARAM));
+			if(longitude != -1){
+				searchCriteriaBean.setLongitude(longitude);
+			}
+
+			float radialSearchUnit = requestParamsValidator.validateGeoLocations(Constants.RADIUS_PARAM, requestParams.getFirst(Constants.RADIUS_PARAM));
+			if(radialSearchUnit != -1){
+				searchCriteriaBean.setRadialSearchUnit(radialSearchUnit);
+			}
+			
+			String radialSearchUom = requestParams.getFirst(Constants.RADIUS_UOM_PARAM);
+			searchCriteriaBean.setRadialSearchUom(radialSearchUom);
+		}
+		
+		return searchCriteriaBean;
+	}
+	
 	private String getSearchCriteriaKey(SearchCriteriaBean searchCriteriaBean){
 		if(appLogger.isDebugEnabled()){
 			appLogger.debug("Inside {}", "DiscoveryServiceController.getSearchCriteriaKey()");
@@ -90,20 +169,7 @@ public class DiscoveryServiceController {
 		
 		long startTimestamp = System.currentTimeMillis();
 		
-		SearchCriteriaBean searchCriteriaBean = null;
-		if(requestParams != null){
-			searchCriteriaBean = new SearchCriteriaBean();
-			RequestParamsValidator requestParamsValidator = new RequestParamsValidator();
-			
-			String offset = requestParams.getFirst(Constants.OFFSET_QUERY_PARAM);
-			searchCriteriaBean.setOffset(requestParamsValidator.validate(Constants.OFFSET_QUERY_PARAM, offset));
-			
-			String limit = requestParams.getFirst(Constants.LIMIT_QUERY_PARAM);
-			searchCriteriaBean.setLimit(requestParamsValidator.validate(Constants.LIMIT_QUERY_PARAM, limit));
-
-			String sortBy = requestParams.getFirst(Constants.SORT_BY_QUERY_PARAM);
-			searchCriteriaBean.setSortBy(requestParamsValidator.validate(Constants.SORT_BY_QUERY_PARAM, sortBy));
-		}
+		SearchCriteriaBean searchCriteriaBean = getSearchCriteriaFromRequestParams(requestParams);
 		
 		LabTestsSearchResultsBean labTestsSearchResultsBean = null;
 		String cacheKey = getSearchCriteriaKey(searchCriteriaBean);
@@ -219,81 +285,6 @@ public class DiscoveryServiceController {
 		return labTestDetailsResultBean;
 	}
 
-	private SearchCriteriaBean getSearchCriteriaFromRequestParams(MultiValueMap<String, String> requestParams){
-		SearchCriteriaBean searchCriteriaBean = null;
-		if((requestParams != null) && (! requestParams.isEmpty())){
-			searchCriteriaBean = new SearchCriteriaBean();
-			RequestParamsValidator requestParamsValidator = new RequestParamsValidator();
-			
-			String offset = requestParams.getFirst(Constants.OFFSET_QUERY_PARAM);
-			searchCriteriaBean.setOffset(requestParamsValidator.validate(Constants.OFFSET_QUERY_PARAM, offset));
-			
-			String limit = requestParams.getFirst(Constants.LIMIT_QUERY_PARAM);
-			searchCriteriaBean.setLimit(requestParamsValidator.validate(Constants.LIMIT_QUERY_PARAM, limit));
-
-			String sortBy = requestParams.getFirst(Constants.SORT_BY_QUERY_PARAM);
-			searchCriteriaBean.setSortBy(requestParamsValidator.validate(Constants.SORT_BY_QUERY_PARAM, sortBy));
-
-			String productId = requestParams.getFirst(Constants.PRODUCT_ID_PARAM);
-			if(! StringUtils.isEmpty(productId)){
-				searchCriteriaBean.setProductId(productId);
-			}
-			
-			String productName = requestParams.getFirst(Constants.PRODUCT_NAME_PARAM);
-			if(! StringUtils.isEmpty(productName)){
-				searchCriteriaBean.setProductName(productName);
-			}
-
-			String productType = requestParams.getFirst(Constants.PRODUCT_TYPE_PARAM);
-			if(! StringUtils.isEmpty(productType)){
-				searchCriteriaBean.setProductType(productType);
-			}
-
-			String productSearchTags = requestParams.getFirst(Constants.PRODUCT_SEARCH_TAGS_PARAM);
-			if(! StringUtils.isEmpty(productSearchTags)){
-				searchCriteriaBean.setProductSearchTags(productSearchTags);
-			}
-			
-			String labId = requestParams.getFirst(Constants.LAB_ID_PARAM);
-			if(! StringUtils.isEmpty(labId)){
-				searchCriteriaBean.setLabId(labId);
-			}
-
-			String labName = requestParams.getFirst(Constants.LAB_NAME_PARAM);
-			if(! StringUtils.isEmpty(labName)){
-				searchCriteriaBean.setLabName(labName);
-			}
-
-			String labGroupName = requestParams.getFirst(Constants.LAB_GROUP_NAME_PARAM);
-			if(! StringUtils.isEmpty(labGroupName)){
-				searchCriteriaBean.setLabGroupName(labGroupName);
-			}
-			
-			boolean isLenient = requestParamsValidator.validateBoolean(Constants.IS_LENIENT_PARAM, requestParams.getFirst(Constants.IS_LENIENT_PARAM));
-			searchCriteriaBean.setLenient(isLenient);
-			
-			float latitude = requestParamsValidator.validateGeoLocations(Constants.LATITUDE_PARAM, requestParams.getFirst(Constants.LATITUDE_PARAM));
-			if(latitude != -1){
-				searchCriteriaBean.setLatitude(latitude);
-			}
-
-			float longitude = requestParamsValidator.validateGeoLocations(Constants.LONGITUDE_PARAM, requestParams.getFirst(Constants.LONGITUDE_PARAM));
-			if(longitude != -1){
-				searchCriteriaBean.setLongitude(longitude);
-			}
-
-			float radialSearchUnit = requestParamsValidator.validateGeoLocations(Constants.RADIUS_PARAM, requestParams.getFirst(Constants.RADIUS_PARAM));
-			if(radialSearchUnit != -1){
-				searchCriteriaBean.setRadialSearchUnit(radialSearchUnit);
-			}
-			
-			String radialSearchUom = requestParams.getFirst(Constants.RADIUS_UOM_PARAM);
-			searchCriteriaBean.setRadialSearchUom(radialSearchUom);
-		}
-		
-		return searchCriteriaBean;
-	}
-	
 	@RequestMapping(value = "/labs/v1/all", method = RequestMethod.GET, produces="application/json")
 	public @ResponseBody LabsSearchResultsBean getLabs(@RequestParam MultiValueMap<String, String> requestParams,
 															@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,

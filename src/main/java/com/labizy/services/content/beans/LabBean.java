@@ -26,14 +26,6 @@ public class LabBean {
 	  
 	  private String usefulTips;
 	  private String externalReviewsUrl;
-	  private String mediumSizeImage1Url;
-	  private String mediumSizeImage1Text;
-	  private String mediumSizeImage2Url;
-	  private String mediumSizeImage2Text;
-	  private String mediumSizeImage3Url;
-	  private String mediumSizeImage3Text;
-	  private String largeSizeImageUrl;
-	  private String largeSizeImageText;
 	  
 	  @JsonProperty("labTestsIds")
 	  private ArrayList<String> labTestsIds;
@@ -180,70 +172,6 @@ public class LabBean {
 
 	public void setExternalReviewsUrl(String externalReviewsUrl) {
 		this.externalReviewsUrl = externalReviewsUrl;
-	}
-
-	public String getMediumSizeImage1Url() {
-		return mediumSizeImage1Url;
-	}
-
-	public void setMediumSizeImage1Url(String mediumSizeImage1Url) {
-		this.mediumSizeImage1Url = mediumSizeImage1Url;
-	}
-
-	public String getMediumSizeImage1Text() {
-		return mediumSizeImage1Text;
-	}
-
-	public void setMediumSizeImage1Text(String mediumSizeImage1Text) {
-		this.mediumSizeImage1Text = mediumSizeImage1Text;
-	}
-
-	public String getMediumSizeImage2Url() {
-		return mediumSizeImage2Url;
-	}
-
-	public void setMediumSizeImage2Url(String mediumSizeImage2Url) {
-		this.mediumSizeImage2Url = mediumSizeImage2Url;
-	}
-
-	public String getMediumSizeImage2Text() {
-		return mediumSizeImage2Text;
-	}
-
-	public void setMediumSizeImage2Text(String mediumSizeImage2Text) {
-		this.mediumSizeImage2Text = mediumSizeImage2Text;
-	}
-
-	public String getMediumSizeImage3Url() {
-		return mediumSizeImage3Url;
-	}
-
-	public void setMediumSizeImage3Url(String mediumSizeImage3Url) {
-		this.mediumSizeImage3Url = mediumSizeImage3Url;
-	}
-
-	public String getMediumSizeImage3Text() {
-		return mediumSizeImage3Text;
-	}
-
-	public void setMediumSizeImage3Text(String mediumSizeImage3Text) {
-		this.mediumSizeImage3Text = mediumSizeImage3Text;
-	}
-
-	public String getLargeSizeImageUrl() {
-		return largeSizeImageUrl;
-	}
-
-	public void setLargeSizeImageUrl(String largeSizeImageUrl) {
-		this.largeSizeImageUrl = largeSizeImageUrl;
-	}
-
-	public String getLargeSizeImageText() {
-		return largeSizeImageText;
-	}
-
-	public void setLargeSizeImageText(String largeSizeImageText) {
-		this.largeSizeImageText = largeSizeImageText;
 	}
 
 	public ArrayList<String> getLabTestsIds() {

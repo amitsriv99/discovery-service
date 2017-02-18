@@ -3,7 +3,7 @@ package com.labizy.services.content.beans;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class LabTestImageBean {
+public class ImageBean {
 	private String imageUrl;
 	private String altText;
 

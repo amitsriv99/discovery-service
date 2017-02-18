@@ -11,7 +11,13 @@ public class LabDetailsBean extends LabBean {
 	
 	private String distanceFromPoi;
 	private String distanceFromPoiUom;
-	
+
+	private ImageBean mediumSizeImage1Url;
+	private ImageBean mediumSizeImage2Url;
+	private ImageBean mediumSizeImage3Url;
+
+	private ImageBean largeSizeImage;
+
 	@JsonProperty("labTests")
 	private ArrayList<LabTestWithPricingPromoBean> labTests;
 
@@ -45,5 +51,37 @@ public class LabDetailsBean extends LabBean {
 
 	public void setRank(String rank) {
 		this.rank = rank;
+	}
+
+	public ImageBean getMediumSizeImage1Url() {
+		return mediumSizeImage1Url;
+	}
+
+	public void setMediumSizeImage1Url(ImageBean mediumSizeImage1Url) {
+		this.mediumSizeImage1Url = mediumSizeImage1Url;
+	}
+
+	public ImageBean getMediumSizeImage2Url() {
+		return mediumSizeImage2Url;
+	}
+
+	public void setMediumSizeImage2Url(ImageBean mediumSizeImage2Url) {
+		this.mediumSizeImage2Url = mediumSizeImage2Url;
+	}
+
+	public ImageBean getMediumSizeImage3Url() {
+		return mediumSizeImage3Url;
+	}
+
+	public void setMediumSizeImage3Url(ImageBean mediumSizeImage3Url) {
+		this.mediumSizeImage3Url = mediumSizeImage3Url;
+	}
+
+	public ImageBean getLargeSizeImage() {
+		return largeSizeImage;
+	}
+
+	public void setLargeSizeImage(ImageBean largeSizeImage) {
+		this.largeSizeImage = largeSizeImage;
 	}
 }
