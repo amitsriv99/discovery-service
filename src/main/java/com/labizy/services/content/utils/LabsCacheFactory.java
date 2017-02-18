@@ -1,8 +1,6 @@
 package com.labizy.services.content.utils;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -10,16 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.labizy.services.content.beans.LabBean;
 import com.labizy.services.content.beans.LabDetailsBean;
 import com.labizy.services.content.beans.LabDetailsResultBean;
-import com.labizy.services.content.beans.LabTestBean;
-import com.labizy.services.content.beans.LabTestDetailsBean;
-import com.labizy.services.content.beans.LabTestDetailsResultBean;
-import com.labizy.services.content.beans.LabTestsSearchResultsBean;
 import com.labizy.services.content.beans.LabsSearchResultsBean;
 import com.labizy.services.content.beans.SearchCriteriaBean;
 import com.labizy.services.content.beans.SearchResultsSummaryBean;
@@ -70,7 +60,7 @@ public class LabsCacheFactory {
 		
 		LabsSearchResultsBean labsSearchResultsBean = null;
 		SearchResultsSummaryBean searchResultsSummaryBean = null;
-		ArrayList<LabBean> labsList = null;
+		List<LabDetailsBean> labsList = null;
 		CacheObject cacheObject = null;
 		
 		if(! StringUtils.isEmpty(cacheKey)){
@@ -84,13 +74,16 @@ public class LabsCacheFactory {
 				synchronized(this){
 					cacheObject = cacheStore.get(cacheKey);
 					if(cacheObject == null){
-						labsList = loadLabsBean(cacheKeyType);
+						labsList = loadLabsBean(cacheKeyType, searchCriteriaBean);
 
-						if(logger.isDebugEnabled()){
-							logger.debug("Setting {} Lab Tests in the cache store..", ((labsList == null) ? 0 : labsList.size()));
+						//Don't cache if the search is by geo locations.. You can't cache the millions and millions of such combinations..
+						if((searchCriteriaBean.getLatitude() != -1) || (searchCriteriaBean.getLongitude() != -1)){
+							if(logger.isDebugEnabled()){
+								logger.debug("Setting {} Lab Tests in the cache store..", ((labsList == null) ? 0 : labsList.size()));
+							}
+							cacheObject = new CacheObject(labsList);
+							cacheStore.put(cacheKey, cacheObject);
 						}
-						cacheObject = new CacheObject(labsList);
-						cacheStore.put(cacheKey, cacheObject);
 					}
 				}
 			} else if((System.currentTimeMillis() - cacheObject.birthTimestamp) > this.maxAge){
@@ -102,10 +95,12 @@ public class LabsCacheFactory {
 					cacheObject = cacheStore.get(cacheKey);
 					if((System.currentTimeMillis() - cacheObject.birthTimestamp) > this.maxAge){
 						cacheStore.remove(cacheKey);
-						labsList = loadLabsBean(cacheKeyType);
+						labsList = loadLabsBean(cacheKeyType, searchCriteriaBean);
 						
-						cacheObject = new CacheObject(labsList);
-						cacheStore.put(cacheKey, cacheObject);
+						//Don't cache if the search is by geo locations.. You can't cache the millions and millions of such combinations..
+						if((searchCriteriaBean.getLatitude() != -1) || (searchCriteriaBean.getLongitude() != -1)){						cacheObject = new CacheObject(labsList);
+							cacheStore.put(cacheKey, cacheObject);
+						}
 					}
 				}
 			} else{
@@ -217,93 +212,29 @@ public class LabsCacheFactory {
 			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String)");
 		}
 		
-		LabDetailsResultBean labDetailsResultBean = null;
-
-		String contentRepository = System.getProperty("labtests.discovery.repository");
-		File afile = new File(contentRepository + File.separator + "details" + File.separator + "labs" + File.separator + (cacheKey + ".json"));
+		LabDetailsResultBean labDetailsResultBean = productLabsDaoAdapter.loadLabDetailsBean(cacheKey);
 		
-		if(! afile.exists()){
-			throw new DiscoveryItemsNotFoundException(afile.getAbsolutePath() + " not found..");
-		}
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Loading Lab Tests from {}", afile.getAbsoluteFile());
-		}
-		
-		ObjectMapper mapper = new ObjectMapper();
-		
-		try {
-			labDetailsResultBean = mapper.readValue(afile, LabDetailsResultBean.class);
-		} catch (JsonParseException e) {
-			throw new DiscoveryItemsProcessingException(e);
-		} catch (JsonMappingException e) {
-			throw new DiscoveryItemsProcessingException(e);
-		} catch (IOException e) {
-			throw new DiscoveryItemsProcessingException(e);
-		}
-		
-		if(labDetailsResultBean == null){
-			throw new DiscoveryItemsProcessingException("Failed to fetch labs from " + afile.getAbsolutePath());
-		}else{
-			if(logger.isDebugEnabled()){
-				logger.debug("Loaded Lab --> LabId : {}", labDetailsResultBean.getLabDetails().getLabId());
-			}
-		}
-
 		return labDetailsResultBean;
 	}
 	
-	private ArrayList<LabBean> loadLabsBean(String cacheKeyType) 
+	private List<LabDetailsBean> loadLabsBean(String cacheKeyType, SearchCriteriaBean searchCriteriaBean) 
 								throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		
 		if(logger.isDebugEnabled()){
 			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String)");
 		}
 
-		ArrayList<LabBean> labsList = null;
-		LabsSearchResultsBean labs = null;
-
-		String contentRepository = System.getProperty("labtests.discovery.repository");
-		File afile = new File(contentRepository + File.separator + "labs-discovery.json");
+		List<LabDetailsBean> labsList = productLabsDaoAdapter.loadLabDetailsBean(searchCriteriaBean);
 		
-		if(! afile.exists()){
-			throw new DiscoveryItemsNotFoundException(afile.getAbsolutePath() + " not found..");
-		}
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Loading Lab Tests from {}", afile.getAbsoluteFile());
-		}
-		
-		ObjectMapper mapper = new ObjectMapper();
-		
-		try {
-			labs = mapper.readValue(afile, LabsSearchResultsBean.class);
-		} catch (JsonParseException e) {
-			throw new DiscoveryItemsProcessingException(e);
-		} catch (JsonMappingException e) {
-			throw new DiscoveryItemsProcessingException(e);
-		} catch (IOException e) {
-			throw new DiscoveryItemsProcessingException(e);
-		}
-		
-		if(labs == null){
-			throw new DiscoveryItemsProcessingException("Failed to fetch labs from " + afile.getAbsolutePath());
-		}else{
-			labsList = labs.getLabs();
-			if(logger.isDebugEnabled()){
-				logger.debug("Loaded {} Lab Tests", ((labsList == null) ? 0 : labsList.size()));
-			}
-		}
-
 		return labsList;
 	}
 	
     private class CacheObject{
 		private long birthTimestamp;
 		private LabDetailsBean labDetailsBean;
-		private ArrayList<LabBean> labsList;
+		private List<LabDetailsBean> labsList;
 		
-		public CacheObject(ArrayList<LabBean> labsList){
+		public CacheObject(List<LabDetailsBean> labsList){
 			this.labsList = labsList;
 			this.birthTimestamp = System.currentTimeMillis();
 		}

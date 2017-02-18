@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import com.labizy.services.content.beans.PropertiesBean;
-import com.labizy.services.content.beans.SupportedEnvironsBean;
 import com.labizy.services.content.builder.PropertiesBuilder;
 import com.labizy.services.content.exceptions.EnvironNotDefPropertiesBuilderException;
 
@@ -28,6 +27,11 @@ public class CommonUtils {
 	private static SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy");
 	private static SimpleDateFormat simpleDateTimeFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:SS");
 
+	private static String distanceByKms = "( 6371 * acos(cos(radians({0})) * cos( radians(lat)) * cos(radians(lng) - radians({1})) + sin(radians({2})) * sin( radians(lat))) ) AS distance ";
+	private static String distanceByMiles = "( 3959 * acos(cos(radians({0})) * cos( radians(lat)) * cos(radians(lng) - radians({1})) + sin(radians({2})) * sin( radians(lat))) ) AS distance ";
+	private static MessageFormat distanceByKmsFormat = new MessageFormat(distanceByKms);
+	private static MessageFormat distanceByMilesFormat = new MessageFormat(distanceByMiles);
+	
 	static{
         SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy");
         try {
@@ -138,12 +142,30 @@ public class CommonUtils {
 			logger.info("***** Environment : {} *****", environ);
 		}
 		
-		if((environ == null) || ("".equals(environ.trim())) || (!SupportedEnvironsBean.isEnvironSupported(environ))){
-			throw new EnvironNotDefPropertiesBuilderException("System variable '" + commonProperties.getEnvironSystemPropertyName() + "' is not set to point to one of " + SupportedEnvironsBean.getSupportedEnvirons() + ". Please set -D" + commonProperties.getEnvironSystemPropertyName() + "=local|ppe|test|lnp|prod");
+		if((environ == null) || ("".equals(environ.trim())) || (! commonProperties.getSupportedEnvirons().contains(environ))){
+			throw new EnvironNotDefPropertiesBuilderException("System variable '" + commonProperties.getEnvironSystemPropertyName() + "' is not set to point to one of " + commonProperties.getSupportedEnvirons() + ". Please set -D" + commonProperties.getEnvironSystemPropertyName() + "=local|ppe|test|lnp|prod");
 		}
 		
 		return environ;
 	} 
+
+	public String getRadialDistanceQueryPart(String latitude, String longitude, String uom){
+		String queryPart = null;
+
+		if((!StringUtils.isEmpty(latitude)) && (!StringUtils.isEmpty(longitude))){
+			Object[] args = {latitude, longitude, latitude};
+			
+			if(StringUtils.isEmpty(uom) || "kms".equalsIgnoreCase(uom)){
+				queryPart = distanceByKmsFormat.format(args);
+			}else{
+				queryPart = distanceByMilesFormat.format(args);
+			}
+		}else{
+			queryPart = " -1 AS distance ";
+		}
+		
+		return queryPart;
+	}
 	
 	public static void main (String[] args){
 	    System.setProperty("environ", "local");
@@ -167,5 +189,12 @@ public class CommonUtils {
 		
 		String uniqueId = commonUtils.getUniqueGeneratedId("LAB", "");
 		System.out.println("Unique Id : " + uniqueId);
+		
+		String latitude = "12.23435";
+		String longitude = "76.78435";
+		String uom = "miles";
+		
+		String distanceQueryPart = commonUtils.getRadialDistanceQueryPart(latitude, longitude, uom);
+		System.out.println(distanceQueryPart);
 	}	
 }

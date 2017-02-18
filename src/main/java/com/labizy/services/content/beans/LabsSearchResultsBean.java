@@ -1,6 +1,6 @@
 package com.labizy.services.content.beans;
 
-import java.util.ArrayList;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -11,15 +11,15 @@ public class LabsSearchResultsBean {
 	private SearchResultsSummaryBean resultSummary;
 	
 	@JsonProperty("labs")
-	private ArrayList<LabBean> labs;
+	private List<LabDetailsBean> labs;
 	
 	private String errorCode;
 	private String errorDescription;
 
-	public ArrayList<LabBean> getLabs() {
+	public List<LabDetailsBean> getLabs() {
 		return labs;
 	}
-	public void setLabs(ArrayList<LabBean> labs) {
+	public void setLabs(List<LabDetailsBean> labs) {
 		this.labs = labs;
 	}
 	public SearchResultsSummaryBean getResultSummary() {

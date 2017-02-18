@@ -57,14 +57,14 @@ public class EncryptionDecryptionUtils {
 	}
 	
 	public static void main(String[] args){
-		String password = "Hell0L@bizy";
+		String password = "labizy_user";
 		EncryptionDecryptionUtils encryptionDecryptionUtils = new EncryptionDecryptionUtils();
 		
 		String encoded = encryptionDecryptionUtils.encodeToBase64String(password);
 		System.out.println("Encoded (This is what you get from the UI) : " + encoded);
 		
 		//String decoded = encryptionDecryptionUtils.decodeToBase64String(encoded);
-		String decoded = encryptionDecryptionUtils.decodeToBase64String("SGVsbDBXb3IhZA==");
+		String decoded = encryptionDecryptionUtils.decodeToBase64String(encoded);
 		System.out.println("Decoded : " + decoded);
 		
 		if(password.equals(decoded)){

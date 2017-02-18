@@ -26,6 +26,22 @@ public class Constants {
 	public static final String LIMIT_QUERY_PARAM = "limit";
 	public static final String SORT_BY_QUERY_PARAM = "sortBy";
 	
+	public static final String IS_LENIENT_PARAM = "isLenient";
+	
+	public static final String PRODUCT_ID_PARAM = "prdId";
+	public static final String PRODUCT_NAME_PARAM = "prdName";
+	public static final String PRODUCT_TYPE_PARAM = "prdType";
+	public static final String PRODUCT_SEARCH_TAGS_PARAM = "prdSearchTags";
+	
+	public static final String LAB_ID_PARAM = "labId";
+	public static final String LAB_NAME_PARAM = "labName";
+	public static final String LAB_GROUP_NAME_PARAM = "labGrpName";
+	
+	public static final String LATITUDE_PARAM = "lat";
+	public static final String LONGITUDE_PARAM = "lng";
+	public static final String RADIUS_PARAM = "rad";
+	public static final String RADIUS_UOM_PARAM = "radUom";
+	
 	public static final String LAB_TESTS_CACHE_KEY_TYPE = "LAB_TESTS_CACHE";
 	public static final String LAB_TEST_CACHE_KEY_TYPE = "LAB_TEST_CACHE";
 	

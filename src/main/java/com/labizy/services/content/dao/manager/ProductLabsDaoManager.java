@@ -3,7 +3,6 @@ package com.labizy.services.content.dao.manager;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,11 +11,9 @@ import org.springframework.util.StringUtils;
 import com.labizy.services.content.beans.PropertiesBean;
 import com.labizy.services.content.builder.PropertiesBuilder;
 import com.labizy.services.content.dao.util.DatabaseConnection;
-import com.labizy.services.content.exceptions.DataIntegrityException;
 import com.labizy.services.content.exceptions.DataNotFoundException;
 import com.labizy.services.content.exceptions.DatabaseConnectionException;
 import com.labizy.services.content.exceptions.QueryExecutionException;
-import com.labizy.services.content.exceptions.UniqueKeyViolationException;
 import com.labizy.services.content.utils.CommonUtils;
 import com.labizy.services.content.utils.EncryptionDecryptionUtils;
 
@@ -35,11 +32,10 @@ public class ProductLabsDaoManager {
 	private String databaseName;
 	private EncryptionDecryptionUtils encryptionDecryptionUtils;
 	private DatabaseConnection databaseConnection;
-		
+
 	public void setDatabaseConnection(DatabaseConnection databaseConnection) {
 		this.databaseConnection = databaseConnection;
 	}
-
 
 	public void setEncryptionDecryptionUtils(EncryptionDecryptionUtils encryptionDecryptionUtils) {
 		this.encryptionDecryptionUtils = encryptionDecryptionUtils;
@@ -53,164 +49,276 @@ public class ProductLabsDaoManager {
 		this.databaseName = databaseName;
 	}
 
-	public Map<String, String> createUserProfile(String userId, String title, String firstName, String middleName, 
-									String lastName, String sex, java.util.Date dateOfBirth, String maritalStatus, 
-										String profilePictureUrl, boolean isPrimaryProfile, Connection connection) 
-			throws DataIntegrityException, QueryExecutionException, DatabaseConnectionException{
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.createUserProfile()");
+	private String getSearchTagsClause(String searchTags){
+		if(StringUtils.isEmpty(searchTags)){
+			return null;
 		}
 		
-		Map<String, String> userProfileMap = null;
-		PreparedStatement preparedStatement = null;
+		String searchTagsClause = null;
+		String[] searchTagsArr = searchTags.trim().replaceAll(" +", " ").split(" ");
 		
-		boolean isNewConnection = (connection == null);
+		StringBuffer searchTagsClauseBuffer = new StringBuffer();
 		
-		boolean userProfileExists = true;
+		boolean firstClauseAdded = false;
+		
+		for(int i = 0; i < searchTagsArr.length; i++){
+			if(firstClauseAdded){
+				searchTagsClauseBuffer.append(" OR ");
+			}else{
+				firstClauseAdded = true;
+			}
 
-		try {
-			userProfileMap = getUserProfileDetails(userId, isPrimaryProfile, connection);
-		} catch (DataNotFoundException e2) {
-			userProfileExists = false;
+			searchTagsClauseBuffer.append(" search_tags LIKE '%").append(searchTagsArr[i].trim()).append("%'");
 		}
 		
-		if(!userProfileExists){
-			try{
-				if(isNewConnection){
-					connection = databaseConnection.getDatabaseConnection(databaseName);
-					connection.setAutoCommit(false);
-				}
-				
-				String sqlQuery = "INSERT INTO user_profile_tb (user_id, title, first_name, middle_name, last_name, "
-										+ "sex, date_of_birth, marital_status, profile_picture, is_primary_profile) "
-										+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-				
-				preparedStatement = connection.prepareStatement(sqlQuery);
-				
-				preparedStatement.setNString(1, userId);
-				preparedStatement.setNString(2, title);
-				preparedStatement.setNString(3, firstName);
-				preparedStatement.setNString(4, middleName);
-				preparedStatement.setNString(5, lastName);
-				preparedStatement.setNString(6, sex);
-				
-				java.sql.Timestamp dateOfBirthTS = new java.sql.Timestamp(dateOfBirth.getTime());
-				preparedStatement.setTimestamp(7, dateOfBirthTS);
-				
-				preparedStatement.setNString(8, maritalStatus);
-				preparedStatement.setNString(9, profilePictureUrl);
-				preparedStatement.setBoolean(10, isPrimaryProfile);
-				
-				preparedStatement.execute();
+		searchTagsClause = " ( " + searchTagsClauseBuffer.toString() + " ) ";
+		
+		return searchTagsClause;
+	}
 
-				if(isNewConnection){
-					connection.commit();
-					userProfileMap = getUserProfileDetails(userId, isPrimaryProfile, connection);
-				}
-			}catch(SQLException e){
-				try{
-					if(isNewConnection){
-						connection.rollback();
-					}
-				} catch (SQLException e1) {
-					logger.warn(e1.getMessage());
-				}
-				throw new QueryExecutionException(e);
-			}catch(DataNotFoundException e){
-				logger.error(e.getMessage());
-				throw new QueryExecutionException(e);
-			}finally{
-				try {
-					preparedStatement.close();
-					preparedStatement = null;
+	private String getLabsSearchClause(Map<String, String> searchCriteriaMap, boolean isLooselyMatched){
+		if((searchCriteriaMap == null) || (searchCriteriaMap.isEmpty())){
+			return null;
+		}
+		
+		StringBuffer searchClauseBuffer = new StringBuffer();
+		boolean firstSearchClauseAdded = false;
 
-					if(isNewConnection){
-						connection.setAutoCommit(true);
-	
-						connection.close();
-						connection = null;
-					}
-				} catch (SQLException e) {
-					logger.warn(e.getMessage());
-				}
+		for(Map.Entry<String, String> entry : searchCriteriaMap.entrySet()){
+			if(firstSearchClauseAdded){
+				searchClauseBuffer.append((isLooselyMatched) ? " OR " : " AND ");
+			}else{
+				firstSearchClauseAdded = true;
+			}
+			
+			if(entry.getKey().equals("labId")){
+				searchClauseBuffer.append(" labs_tb.lab_id = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("name")){
+				searchClauseBuffer.append(" name = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("groupName")){
+				searchClauseBuffer.append(" group_name = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("localityName")){
+				searchClauseBuffer.append(" locality_name = '").append(entry.getValue()).append("'");
+			}
+			
+			if(entry.getKey().equals("cityTownOrVillage")){
+				searchClauseBuffer.append(" city_town_or_village = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("state")){
+				searchClauseBuffer.append(" state = '").append(entry.getValue()).append("'");
+			}
+			
+			if(entry.getKey().equals("country")){
+				searchClauseBuffer.append(" country = '").append(entry.getValue()).append("'");
 			}
 		}
 		
-		return userProfileMap;
-	}
-
-	public Map<String, String> getUserProfileDetails(String userId, boolean isPrimaryProfile, Connection connection)
-									throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		HashMap<String, String> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserProfileDetails(String, boolean)");
-		}
-		boolean isNewConnection = (connection == null);
-
-		if(isNewConnection){
-			connection = databaseConnection.getDatabaseConnection(databaseName);
+		String searchClause = searchClauseBuffer.toString().trim();
+		if(! StringUtils.isEmpty(searchClause)){
+			searchClause = "( " + searchClause + " )"; 
 		}
 		
+		return searchClause;
+	} 
+
+	private String getProductsSearchClause(Map<String, String> searchCriteriaMap, boolean isLooselyMatched){
+		if((searchCriteriaMap == null) || (searchCriteriaMap.isEmpty())){
+			return null;
+		}
+		
+		StringBuffer searchClauseBuffer = new StringBuffer();
+		boolean firstSearchClauseAdded = false;
+		
+		for(Map.Entry<String, String> entry : searchCriteriaMap.entrySet()){
+			if(firstSearchClauseAdded){
+				searchClauseBuffer.append((isLooselyMatched) ? " OR " : " AND ");
+			}else{
+				firstSearchClauseAdded = true;
+			}
+			
+			if(entry.getKey().equals("productId")){
+				searchClauseBuffer.append(" product_tb.product_id = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("name")){
+				searchClauseBuffer.append(" name = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("type")){
+				searchClauseBuffer.append(" type = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("subType")){
+				String value = entry.getValue().trim();
+				
+				if(StringUtils.isEmpty(value)){
+					searchClauseBuffer.append(" sub_type IS NULL ");
+				}else{
+					searchClauseBuffer.append(" sub_type = '").append(entry.getValue()).append("'");
+				}
+			}
+			
+			if(entry.getKey().equals("searchTags")){
+				searchClauseBuffer.append(getSearchTagsClause(entry.getValue()));
+			}
+		}
+		
+		String searchClause = searchClauseBuffer.toString().trim();
+		if(! StringUtils.isEmpty(searchClause)){
+			searchClause = "( " + searchClause + " )"; 
+		}
+		
+		return searchClause;
+	} 
+	
+	public List<Map<String, String>> searchProducts(Map<String, String> searchCriteriaMap, boolean isLooselyMatched)
+			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
+		
+		List<Map<String, String>> resultList = null;
+		HashMap<String, String> result = null;
+		
+		if(logger.isDebugEnabled()){
+			logger.debug("Inside {}", "ProductLabsDaoManager.searchProducts(Map<String, String>, boolean)");
+		}
+		
+		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
+		
 		PreparedStatement preparedStatement = null;
+
 		try{
-			String sqlQuery = "SELECT user_tb.user_id AS user_id, title, first_name, "
-								+ "middle_name, last_name, sex, date_of_birth, marital_status, "
-								+ "profile_picture, is_primary_profile, email_id, password, COALESCE(status, 'active') AS status "
-								+ "FROM user_profile_tb, user_tb "
-								+ "WHERE user_tb.user_id = user_profile_tb.user_id "
-								+ "AND user_tb.user_id = ? AND is_primary_profile = ? "
-								+ "AND (status IS NULL OR status <> 'DELETED')"; 	
+			String sqlQuery = "SELECT product_tb.product_id AS product_id, name, type, sub_type, "
+							+ "short_description, search_tags, status, is_product, is_package, is_service, "
+							+ "thumbnail_image_url, rank, free_text, about_this_line1, about_this_line1_type, "
+							+ "about_this_line2, about_this_line2_type, about_this_line3, about_this_line3_type, "
+							+ "useful_tips, external_blog_url, medium_size_image1_url, medium_size_image1_text, "
+							+ "medium_size_image2_url, medium_size_image2_text, medium_size_image3_url, "
+							+ "medium_size_image3_text, large_size_image_url, large_size_image_text "
+							+ "FROM product_tb, product_details_tb, product_ranking_tb "
+							+ "WHERE product_tb.product_id = product_details_tb.product_id "
+							+ "AND product_tb.product_id = product_ranking_tb.product_id "
+							+ "AND (status IS NULL OR status <> 'DELETED')"; 	
+			
+			String searchClause = getProductsSearchClause(searchCriteriaMap, isLooselyMatched);
+			
+			if(! StringUtils.isEmpty(searchClause)){
+				sqlQuery = sqlQuery + " AND " + searchClause;
+			}
+			
+			String orderByClause = " ORDER BY rank DESC ";
+
+			sqlQuery = sqlQuery + orderByClause;
+			
+			if(logger.isInfoEnabled()) {
+				logger.info("SQL Search Query --> " + sqlQuery);
+			}
+			
 			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			preparedStatement.setBoolean(2, isPrimaryProfile);
 			
 			ResultSet rs = preparedStatement.executeQuery();
-			result = new HashMap<String, String>();
+			resultList = new ArrayList<Map<String, String>>();
+			
 			while(rs.next()){
-				result.put("userId", userId);
+				result = new HashMap<String, String>();
+
+				String productId = rs.getNString("product_id");
+				result.put("productId", productId);
+			
+				String name = rs.getNString("name");
+				result.put("name", name);
 				
-				String title = rs.getNString("title");
-				result.put("title", title);
+				String type = rs.getNString("type");
+				result.put("type", type);
 				
-				String firstName = rs.getNString("first_name");
-				result.put("firstName", firstName);
+				String subType = rs.getNString("sub_type");
+				result.put("subType", subType);
 				
-				String middleName = rs.getNString("middle_name");
-				result.put("middleName", middleName);
+				String shortDescription = rs.getNString("short_description");
+				result.put("shortDescription", shortDescription);
 				
-				String lastName = rs.getNString("last_name");
-				result.put("lastName", lastName);
-				
-				String sex = rs.getNString("sex");
-				result.put("sex", sex);
-				
-				java.sql.Timestamp dateOfBirthTS = rs.getTimestamp("date_of_birth");
-				String dateOfBirth = commonUtils.getTimestampAsDateString(dateOfBirthTS, true);
-				result.put("dateOfBirth", dateOfBirth);
-				
-				String maritalStatus = rs.getNString("marital_status");
-				result.put("maritalStatus", maritalStatus);
-				
-				String profilePictureUrl = rs.getNString("profile_picture");
-				result.put("profilePictureUrl", profilePictureUrl);
-				
-				String emailId = rs.getNString("email_id");
-				result.put("emailId", emailId);
-				
-				String password = rs.getNString("password");
-				result.put("password", password);
+				String searchTags = rs.getNString("search_tags");
+				result.put("searchTags", searchTags);
 				
 				String status = rs.getNString("status");
 				result.put("status", status);
 				
-				result.put("isPrimaryProfile", Boolean.toString(isPrimaryProfile));
+				boolean isProduct = rs.getBoolean("is_product");
+				result.put("isProduct", Boolean.toString(isProduct));
 				
-				break;
+				boolean isPackage = rs.getBoolean("is_package");
+				result.put("isPackage", Boolean.toString(isPackage));
+				
+				boolean isService = rs.getBoolean("is_service");
+				result.put("isService", Boolean.toString(isService));
+				
+				String thumbnailImageUrl = rs.getNString("thumbnail_image_url");
+				result.put("thumbnailImageUrl", thumbnailImageUrl);
+				
+				int rank = rs.getInt("rank");
+				result.put("rank", Integer.toString(rank));
+				
+				String freeText = rs.getNString("free_text");
+				result.put("freeText", freeText);
+				
+				String aboutThisLine1 = rs.getNString("about_this_line1");
+				result.put("aboutThisLine1", aboutThisLine1);
+				
+				String aboutThisLine1Type = rs.getNString("about_this_line1_type");
+				result.put("aboutThisLine1Type", aboutThisLine1Type);
+				
+				String aboutThisLine2 = rs.getNString("about_this_line2");
+				result.put("aboutThisLine2", aboutThisLine2);
+				
+				String aboutThisLine2Type = rs.getNString("about_this_line2_type");
+				result.put("aboutThisLine2Type", aboutThisLine2Type);
+				
+				String aboutThisLine3 = rs.getNString("about_this_line3");
+				result.put("aboutThisLine3", aboutThisLine3);
+				
+				String aboutThisLine3Type = rs.getNString("about_this_line3_type");
+				result.put("aboutThisLine3Type", aboutThisLine3Type);
+				
+				String usefulTips = rs.getNString("useful_tips");
+				result.put("usefulTips", usefulTips);
+				
+				String externalBlogUrl = rs.getNString("external_blog_url");
+				result.put("externalBlogUrl", externalBlogUrl);
+				
+				String mediumSizeImage1Url = rs.getNString("medium_size_image1_url");
+				result.put("mediumSizeImage1Url", mediumSizeImage1Url);
+				
+				String mediumSizeImage1Text = rs.getNString("medium_size_image1_text");
+				result.put("mediumSizeImage1Text", mediumSizeImage1Text);
+				
+				String mediumSizeImage2Url = rs.getNString("medium_size_image2_url");
+				result.put("mediumSizeImage2Url", mediumSizeImage2Url);
+				
+				String mediumSizeImage2Text = rs.getNString("medium_size_image2_text");
+				result.put("mediumSizeImage2Text", mediumSizeImage2Text);
+				
+				String mediumSizeImage3Url = rs.getNString("medium_size_image3_url");
+				result.put("mediumSizeImage3Url", mediumSizeImage3Url);
+				
+				String mediumSizeImage3Text = rs.getNString("medium_size_image3_text");
+				result.put("mediumSizeImage3Text", mediumSizeImage3Text);
+				
+				String largeSizeImageUrl = rs.getNString("large_size_image_url");
+				result.put("largeSizeImageUrl", largeSizeImageUrl);
+				
+				String largeSizeImageText = rs.getNString("large_size_image_text");
+				result.put("largeSizeImageText", largeSizeImageText);
+			
+				resultList.add(result);
 			}
 			
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User either doesn't exist or has been deleted.");
+			if(resultList.isEmpty()){
+				throw new DataNotFoundException("Products matching the search criteria either don't exist or they have been deleted.");
 			}
 		}catch (SQLException e){
 			logger.error(e.getMessage());
@@ -220,1225 +328,138 @@ public class ProductLabsDaoManager {
 				preparedStatement.close();
 				preparedStatement = null;
 				
-				if(isNewConnection){
-					connection.close();
-					connection = null;
-				}
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-		}
-		
-		return result;
-	}
-
-	public Map<String, String> getUserProfileDetails(String userId, String emailId)
-			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		HashMap<String, String> result = null;
-		
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserProfileDetails(String, boolean)");
-		}
-
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		try{
-			String sqlQuery = "SELECT user_tb.user_id AS user_id, title, first_name, "
-								+ "middle_name, last_name, sex, date_of_birth, marital_status, "
-								+ "profile_picture, is_primary_profile, email_id, password, COALESCE(status, 'active') AS status "
-								+ "FROM user_profile_tb, user_tb "
-								+ "WHERE user_tb.user_id = user_profile_tb.user_id "
-								+ "AND user_tb.user_id = ? AND email_id = ? "
-								+ "AND (status IS NULL OR status <> 'DELETED')"; 	
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			preparedStatement.setNString(2, emailId);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new HashMap<String, String>();
-			while(rs.next()){
-				result.put("userId", userId);
-				
-				String title = rs.getNString("title");
-				result.put("title", title);
-				
-				String firstName = rs.getNString("first_name");
-				result.put("firstName", firstName);
-				
-				String middleName = rs.getNString("middle_name");
-				result.put("middleName", middleName);
-				
-				String lastName = rs.getNString("last_name");
-				result.put("lastName", lastName);
-				
-				String sex = rs.getNString("sex");
-				result.put("sex", sex);
-				
-				java.sql.Timestamp dateOfBirthTS = rs.getTimestamp("date_of_birth");
-				String dateOfBirth = commonUtils.getTimestampAsDateString(dateOfBirthTS, true);
-				result.put("dateOfBirth", dateOfBirth);
-				
-				String maritalStatus = rs.getNString("marital_status");
-				result.put("maritalStatus", maritalStatus);
-				
-				String profilePictureUrl = rs.getNString("profile_picture");
-				result.put("profilePictureUrl", profilePictureUrl);
-				
-				emailId = rs.getNString("email_id");
-				result.put("emailId", emailId);
-				
-				String password = rs.getNString("password");
-				result.put("password", password);
-				
-				String status = rs.getNString("status");
-				result.put("status", status);
-				
-				Boolean isPrimaryProfile = rs.getBoolean("is_primary_profile");
-				result.put("isPrimaryProfile", Boolean.toString(isPrimaryProfile));
-				
-				break;
-			}
-			
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
 				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return result;
-	}
-
-	public Map<String, String> getUserPrimaryAddressDetails(String userId)
-									throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		HashMap<String, String> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserPrimaryAddressDetails(String, boolean)");
-		}
-
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		try{
-			String sqlQuery = "SELECT user_id, address_tb.address_id AS address_id, house_or_flat_number, "
-								+ "house_or_apartment_name, street_address, locality_name, city_town_or_village, "
-								+ "state, country, pin_code, landmark, latitude, longitude "
-								+ "FROM address_tb, user_address_tb "
-								+ "WHERE address_tb.address_id = user_address_tb.address_id "
-								+ "AND user_id = ? "
-								+ "AND is_primary_address = true"; 	
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new HashMap<String, String>();
-			while(rs.next()){
-				result.put("userId", userId);
-				
-				String addressId = rs.getNString("address_id");
-				result.put("addressId", addressId);
-				
-				String houseOrFlatNumber = rs.getNString("house_or_flat_number");
-				result.put("houseOrFlatNumber", houseOrFlatNumber);
-				
-				String houseOrApartmentName = rs.getNString("house_or_apartment_name");
-				result.put("houseOrApartmentName", houseOrApartmentName);
-				
-				String streetAddress = rs.getNString("street_address");
-				result.put("streetAddress", streetAddress);
-				
-				String localityName = rs.getNString("locality_name");
-				result.put("localityName", localityName);
-				
-				String cityTownOrVillage = rs.getNString("city_town_or_village");
-				result.put("cityTownOrVillage", cityTownOrVillage);
-				
-				String state = rs.getNString("state");
-				result.put("state", state);
-				
-				String country = rs.getNString("country");
-				result.put("country", country);
-				
-				String pinCode = rs.getNString("pin_code");
-				result.put("pinCode", pinCode);
-				
-				String landmark = rs.getNString("landmark");
-				result.put("landmark", landmark);
-				
-				Double latitude = rs.getDouble("latitude");
-				if((latitude == null) || (latitude.isNaN()) || (latitude.isInfinite())){
-					result.put("latitude", "");
-				}else{
-					result.put("latitude", Double.toString(latitude));
-				}
-				
-				Double longitude = rs.getDouble("longitude");
-				if((longitude == null) || (longitude.isNaN()) || (longitude.isInfinite())){
-					result.put("longitude", "");
-				}else{
-					result.put("longitude", Double.toString(longitude));
-				}
-				
-				break;
-			}
-			
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User/Address either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return result;
-	}
-	
-	public Map<String, String> getUserBillingAddressDetails(String userId)
-									throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		HashMap<String, String> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserBillingAddressDetails(String, boolean)");
-		}
-
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		try{
-			String sqlQuery = "SELECT user_id, address_tb.address_id AS address_id, house_or_flat_number, "
-								+ "house_or_apartment_name, street_address, locality_name, city_town_or_village, "
-								+ "state, country, pin_code, landmark, latitude, longitude "
-								+ "FROM address_tb, user_address_tb "
-								+ "WHERE address_tb.address_id = user_address_tb.address_id "
-								+ "AND user_id = ? AND is_billing_address = true"; 	
-
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new HashMap<String, String>();
-			while(rs.next()){
-				result.put("userId", userId);
-				
-				String addressId = rs.getNString("address_id");
-				result.put("addressId", addressId);
-				
-				String houseOrFlatNumber = rs.getNString("house_or_flat_number");
-				result.put("houseOrFlatNumber", houseOrFlatNumber);
-				
-				String houseOrApartmentName = rs.getNString("house_or_apartment_name");
-				result.put("houseOrApartmentName", houseOrApartmentName);
-				
-				String streetAddress = rs.getNString("street_address");
-				result.put("streetAddress", streetAddress);
-				
-				String localityName = rs.getNString("locality_name");
-				result.put("localityName", localityName);
-				
-				String cityTownOrVillage = rs.getNString("city_town_or_village");
-				result.put("cityTownOrVillage", cityTownOrVillage);
-				
-				String state = rs.getNString("state");
-				result.put("state", state);
-				
-				String country = rs.getNString("country");
-				result.put("country", country);
-				
-				String pinCode = rs.getNString("pin_code");
-				result.put("pinCode", pinCode);
-				
-				String landmark = rs.getNString("landmark");
-				result.put("landmark", landmark);
-				
-				Double latitude = rs.getDouble("latitude");
-				if((latitude == null) || (latitude.isNaN()) || (latitude.isInfinite())){
-					result.put("latitude", "");
-				}else{
-					result.put("latitude", Double.toString(latitude));
-				}
-				
-				Double longitude = rs.getDouble("longitude");
-				if((longitude == null) || (longitude.isNaN()) || (longitude.isInfinite())){
-					result.put("longitude", "");
-				}else{
-					result.put("longitude", Double.toString(longitude));
-				}
-				
-				break;
-			}
-			
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User/Address either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return result;
-	}
-	
-	public Map<String, String> getUserAddressDetails(String userId, String addressId)
-			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		HashMap<String, String> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserBillingAddressDetails(String, boolean)");
-		}
-
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		try{
-			String sqlQuery = "SELECT user_id, address_tb.address_id AS address_id, house_or_flat_number, "
-								+ "house_or_apartment_name, street_address, locality_name, city_town_or_village, "
-								+ "state, country, pin_code, landmark, latitude, longitude, is_primary_address, is_billing_address " 
-								+ "FROM address_tb, user_address_tb "
-								+ "WHERE address_tb.address_id = user_address_tb.address_id "
-								+ "AND user_id = ? AND address_tb.address_id = ?"; 	
-
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			preparedStatement.setNString(2, addressId);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new HashMap<String, String>();
-			while(rs.next()){
-				result.put("userId", userId);
-
-				result.put("addressId", addressId);
-
-				String houseOrFlatNumber = rs.getNString("house_or_flat_number");
-				result.put("houseOrFlatNumber", houseOrFlatNumber);
-
-				String houseOrApartmentName = rs.getNString("house_or_apartment_name");
-				result.put("houseOrApartmentName", houseOrApartmentName);
-
-				String streetAddress = rs.getNString("street_address");
-				result.put("streetAddress", streetAddress);
-
-				String localityName = rs.getNString("locality_name");
-				result.put("localityName", localityName);
-
-				String cityTownOrVillage = rs.getNString("city_town_or_village");
-				result.put("cityTownOrVillage", cityTownOrVillage);
-
-				String state = rs.getNString("state");
-				result.put("state", state);
-
-				String country = rs.getNString("country");
-				result.put("country", country);
-
-				String pinCode = rs.getNString("pin_code");
-				result.put("pinCode", pinCode);
-
-				String landmark = rs.getNString("landmark");
-				result.put("landmark", landmark);
-
-				Double latitude = rs.getDouble("latitude");
-				if((latitude == null) || (latitude.isNaN()) || (latitude.isInfinite())){
-					result.put("latitude", "");
-				}else{
-					result.put("latitude", Double.toString(latitude));
-				}
-
-				Double longitude = rs.getDouble("longitude");
-				if((longitude == null) || (longitude.isNaN()) || (longitude.isInfinite())){
-					result.put("longitude", "");
-				}else{
-					result.put("longitude", Double.toString(longitude));
-				}
-				
-				boolean isPrimaryAddress = rs.getBoolean("is_primary_address");
-				result.put("isPrimaryAddress", Boolean.toString(isPrimaryAddress));
-				
-				boolean isBillingAddress = rs.getBoolean("is_billing_address");
-				result.put("isBillingAddress", Boolean.toString(isBillingAddress));
-				
-				break;
-			}
-
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User/Address either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-
-		return result;
-	}
-	
-	public List<Map<String, String>> getUserAddressDetails(String userId)
-			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		List<Map<String, String>> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserBillingAddressDetails(String, boolean)");
-		}
-
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		try{
-			String sqlQuery = "SELECT user_id, address_tb.address_id AS address_id, house_or_flat_number, "
-								+ "house_or_apartment_name, street_address, locality_name, city_town_or_village, "
-								+ "state, country, pin_code, landmark, latitude, longitude, is_primary_address, is_billing_address " 
-								+ "FROM address_tb, user_address_tb "
-								+ "WHERE address_tb.address_id = user_address_tb.address_id "
-								+ "AND user_id = ?"; 	
-
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new ArrayList<Map<String, String>>();
-			while(rs.next()){
-				Map<String, String> addressMap = new HashMap<String, String>(); 
-				addressMap.put("userId", userId);
-
-				String addressId = rs.getNString("address_id");
-				addressMap.put("addressId", addressId);
-
-				String houseOrFlatNumber = rs.getNString("house_or_flat_number");
-				addressMap.put("houseOrFlatNumber", houseOrFlatNumber);
-
-				String houseOrApartmentName = rs.getNString("house_or_apartment_name");
-				addressMap.put("houseOrApartmentName", houseOrApartmentName);
-
-				String streetAddress = rs.getNString("street_address");
-				addressMap.put("streetAddress", streetAddress);
-
-				String localityName = rs.getNString("locality_name");
-				addressMap.put("localityName", localityName);
-
-				String cityTownOrVillage = rs.getNString("city_town_or_village");
-				addressMap.put("cityTownOrVillage", cityTownOrVillage);
-
-				String state = rs.getNString("state");
-				addressMap.put("state", state);
-
-				String country = rs.getNString("country");
-				addressMap.put("country", country);
-
-				String pinCode = rs.getNString("pin_code");
-				addressMap.put("pinCode", pinCode);
-
-				String landmark = rs.getNString("landmark");
-				addressMap.put("landmark", landmark);
-
-				Double latitude = rs.getDouble("latitude");
-				if((latitude == null) || (latitude.isNaN()) || (latitude.isInfinite())){
-					addressMap.put("latitude", "");
-				}else{
-					addressMap.put("latitude", Double.toString(latitude));
-				}
-
-				Double longitude = rs.getDouble("longitude");
-				if((longitude == null) || (longitude.isNaN()) || (longitude.isInfinite())){
-					addressMap.put("longitude", "");
-				}else{
-					addressMap.put("longitude", Double.toString(longitude));
-				}
-				
-				boolean isPrimaryAddress = rs.getBoolean("is_primary_address");
-				addressMap.put("isPrimaryAddress", Boolean.toString(isPrimaryAddress));
-				
-				boolean isBillingAddress = rs.getBoolean("is_billing_address");
-				addressMap.put("isBillingAddress", Boolean.toString(isBillingAddress));
-				
-				result.add(addressMap);
-			}
-
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User/Address either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-
-		return result;
-	}
-
-	public List<Map<String, String>> getUserContactDetails(String userId)
-			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		List<Map<String, String>> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserContactDetails(String)");
-		}
-
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		
-		String sqlQuery = "SELECT user_id, contact_tb.contact_id AS contact_id, contact_detail, contact_type, is_primary_contact "
-				+ "FROM contact_tb, user_contact_tb "
-				+ "WHERE contact_tb.contact_id = user_contact_tb.contact_id "
-				+ "AND user_id = ?"; 	
-
-		try{
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new ArrayList<Map<String, String>>();
-			while(rs.next()){
-				Map<String, String> contactMap = new HashMap<String, String>();
-				contactMap.put("userId", userId);
-				
-				String contactId = rs.getNString("contact_id");
-				contactMap.put("contactId", contactId);
-				
-				boolean isPrimaryContact = rs.getBoolean("is_primary_contact");
-				contactMap.put("isPrimaryContact", Boolean.toString(isPrimaryContact));
-				
-				String contactType = rs.getNString("contact_type");
-				contactMap.put("contactType", contactType);
-				
-				String contactDetail = rs.getNString("contact_detail");
-				contactMap.put("contactDetail", contactDetail);
-				
-				result.add(contactMap);
-			}
-			
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User/Contact either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return result;
-	}
-
-	public Map<String, String> getUserContactDetails(String userId, String contactType, boolean isPrimaryContact)
-									throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		HashMap<String, String> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserContactDetails(String, String, boolean)");
-		}
-
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		
-		String sqlQuery = "SELECT user_id, contact_tb.contact_id AS contact_id, contact_detail "
-				+ "FROM contact_tb, user_contact_tb "
-				+ "WHERE contact_tb.contact_id = user_contact_tb.contact_id "
-				+ "AND user_id = ? AND contact_type = ? "
-				+ "AND is_primary_contact = ?"; 	
-
-		try{
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			preparedStatement.setNString(2, contactType);
-			preparedStatement.setBoolean(3, isPrimaryContact);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new HashMap<String, String>();
-			while(rs.next()){
-				result.put("userId", userId);
-				
-				String contactId = rs.getNString("contact_id");
-				result.put("contactId", contactId);
-				
-				result.put("isPrimaryContact", Boolean.toString(isPrimaryContact));
-				
-				result.put("contactType", contactType);
-				
-				String contactDetail = rs.getNString("contact_detail");
-				result.put("contactDetail", contactDetail);
-				
-				break;
-			}
-			
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User/Contact either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return result;
-	}
-
-	public Map<String, String> getUserContactDetails(String userId, String contactId)
-			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		HashMap<String, String> result = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getUserContactDetails(String, String, boolean)");
-		}
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		
-		String sqlQuery = "SELECT user_id, contact_tb.contact_id AS contact_id, contact_type, contact_detail, is_primary_contact "
-				+ "FROM contact_tb, user_contact_tb "
-				+ "WHERE contact_tb.contact_id = user_contact_tb.contact_id "
-				+ "AND user_id = ? AND contact_tb.contact_id = ?"; 	
-
-		try{
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
-			preparedStatement.setNString(2, contactId);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			result = new HashMap<String, String>();
-			while(rs.next()){
-				result.put("userId", userId);
-				
-				result.put("contactId", contactId);
-				
-				String contactType = rs.getNString("contact_type");
-				result.put("contactType", contactType);
-
-				boolean isPrimaryContact = rs.getBoolean("is_primary_contact");
-				result.put("isPrimaryContact", Boolean.toString(isPrimaryContact));
-				
-				String contactDetail = rs.getNString("contact_detail");
-				result.put("contactDetail", contactDetail);
-				
-				break;
-			}
-			
-			if(result.isEmpty()){
-				throw new DataNotFoundException("User/Contact either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return result;
-	}	
-	
-	public String createUser(String emailId, String password)
-					throws UniqueKeyViolationException, DataIntegrityException, QueryExecutionException, DatabaseConnectionException {
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.createUser(String, String)");
-		}
-
-		String userId = null;
-		boolean userAlreadyExists = false;
-		try{
-			Map<String, String> result = getUserId(emailId, null);
-			userId = result.get("userId");
-			userAlreadyExists = !(StringUtils.isEmpty(userId));
-		}catch(Exception e){
-			logger.error(e.getMessage());
-		}
-		
-		if(userAlreadyExists){
-			return userId;
-		}else{
-			userId = commonUtils.getUniqueGeneratedId("USER", null);
-			PreparedStatement preparedStatement = null;
-			Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-			
-			String sqlQuery = "INSERT INTO user_tb(user_id, email_id, password, status, is_real_user, is_guest_user, is_internal_user) VALUES (?, ?, ?, ?, ?, ?, ?)";
-			
-			try{
-				connection.setAutoCommit(false);
-				preparedStatement = connection.prepareStatement(sqlQuery);
-				
-				preparedStatement.setNString(1, userId);
-				preparedStatement.setNString(2, emailId);
-				
-				String decodedPassword = encryptionDecryptionUtils.decodeToBase64String(password);
-				String hashedPassword = encryptionDecryptionUtils.hashToBase64String(decodedPassword);
-				preparedStatement.setNString(3, hashedPassword);
-
-				preparedStatement.setNString(4, null);
-				preparedStatement.setBoolean(5, true);
-				preparedStatement.setBoolean(6, false);
-				preparedStatement.setBoolean(7, false);
-				
-				preparedStatement.execute();
-				connection.commit();
-			}catch(SQLException e){
-				try{
-					userId = null;
-					connection.rollback();
-				} catch (SQLException e1) {
-					logger.warn(e1.getMessage());
-				}
-				throw new QueryExecutionException(e);
-			}finally{
-				try {
-					preparedStatement.close();
-					connection.close();
-				} catch (SQLException e) {
-					logger.warn(e.getMessage());
-				}
-				preparedStatement = null;
 				connection = null;
-			}
-			
-			return userId;
-		}
-	}
-
-	public Map<String, String> createUserAddress(String userId, String houseOrFlatNumber, String houseOrApartmentName, String streetAddress, 
-									String localityName, String cityOrTownOrVillage, String state, String country, String pinCode, 
-										String landmark, Double latitude, Double longitude, boolean isPrimaryAddress, boolean isBillingAddress) 
-			throws DataIntegrityException, QueryExecutionException, DatabaseConnectionException {
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.createUserAddress()");
-		}
-
-		String addressId = null;
-		Map<String, String> userAddressMap = null;
-		PreparedStatement preparedStatement = null;
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-
-		addressId = commonUtils.getUniqueGeneratedId("ADDR", null);
-
-		try{
-			connection.setAutoCommit(false);
-			String sqlQuery = "INSERT INTO address_tb (address_id, house_or_flat_number, house_or_apartment_name, street_address, locality_name, city_town_or_village, state, country, pin_code, landmark, latitude, longitude)	VALUES	(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-			
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			
-			preparedStatement.setNString(1, addressId);
-			preparedStatement.setNString(2, houseOrFlatNumber);
-			preparedStatement.setNString(3, houseOrApartmentName);
-			preparedStatement.setNString(4, streetAddress);
-			preparedStatement.setNString(5, localityName);
-			preparedStatement.setNString(6, cityOrTownOrVillage);
-			preparedStatement.setNString(7, state);
-			preparedStatement.setNString(8, country);
-			preparedStatement.setNString(9, pinCode);
-			preparedStatement.setNString(10, landmark);
-			if((latitude == null) || (latitude.isNaN()) || (latitude.isInfinite())){
-				preparedStatement.setNull(11, java.sql.Types.DOUBLE);
-			}else{
-				preparedStatement.setDouble(11, latitude);
-			}
-			if((longitude == null) || (longitude.isNaN()) || (longitude.isInfinite())){
-				preparedStatement.setNull(12, java.sql.Types.DOUBLE);
-			}else{
-				preparedStatement.setDouble(12, longitude);
-			}
-			
-			preparedStatement.execute();
-			preparedStatement.close();
-			
-			sqlQuery = "INSERT INTO user_address_tb (user_id, address_id, is_primary_address, is_billing_address) VALUES (?, ?, ?, ?)";
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			
-			preparedStatement.setNString(1, userId);
-			preparedStatement.setNString(2, addressId);
-			preparedStatement.setBoolean(3, isPrimaryAddress);
-			preparedStatement.setBoolean(4, isBillingAddress);
-			
-			preparedStatement.execute();
-			connection.commit();
-			
-			userAddressMap = getUserAddressDetails(userId, addressId);
-		}catch(SQLException e){
-			try{
-				connection.rollback();
-			} catch (SQLException e1) {
-				logger.warn(e1.getMessage());
-			}
-			throw new QueryExecutionException(e);
-		}catch(DataNotFoundException e){
-			logger.error(e.toString());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.setAutoCommit(true);
-
-				connection.close();
 			} catch (SQLException e) {
 				logger.warn(e.getMessage());
 			}
-			preparedStatement = null;
-			connection = null;
 		}
 		
-		return userAddressMap;
+		return resultList;
 	}
 
-	public String getContactId(String contactType, String contactDetail) 
-						throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException {
+	public Map<String, String> getProductDetails(String productId)
+									throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
+		HashMap<String, String> result = null;
+
 		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.getContactId(String, String)");
+			logger.debug("Inside {}", "ProductLabsDaoManager.getProductDetails(String)");
 		}
 
-		String contactId = null;
 		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
+		
 		PreparedStatement preparedStatement = null;
 		try{
-			String sqlQuery = "SELECT contact_id, contact_type, contact_detail FROM contact_tb WHERE contact_type = ? AND contact_detail = ?";
+			String sqlQuery = "SELECT product_tb.product_id AS product_id, name, type, sub_type, "
+										+ "short_description, search_tags, status, is_product, is_package, is_service, "
+										+ "thumbnail_image_url, rank, free_text, about_this_line1, about_this_line1_type, "
+										+ "about_this_line2, about_this_line2_type, about_this_line3, about_this_line3_type, "
+										+ "useful_tips, external_blog_url, medium_size_image1_url, medium_size_image1_text, "
+										+ "medium_size_image2_url, medium_size_image2_text, medium_size_image3_url, "
+										+ "medium_size_image3_text, large_size_image_url, large_size_image_text "
+										+ "FROM product_tb, product_details_tb, product_ranking_tb "
+										+ "WHERE product_tb.product_id = product_details_tb.product_id "
+										+ "AND product_tb.product_id = product_ranking_tb.product_id "
+										+ "AND product_tb.product_id = ? "
+										+ "AND (status IS NULL OR status <> 'DELETED')"; 	
+
 			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, contactType);
-			preparedStatement.setNString(2, contactDetail);
-			
-			ResultSet rs = preparedStatement.executeQuery();
-			
-			while(rs.next()){
-				contactId = rs.getNString("contact_id");
-				break;
-			}
-			
-			if(StringUtils.isEmpty(contactId)){
-				throw new DataNotFoundException("User either doesn't exist or has been deleted.");
-			}
-		}catch (SQLException e){
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return contactId; 
-	}
-	
-	public Map<String, String> createUserContact(String userId, String contactType, String contactDetail, boolean isPrimaryContact) 
-					throws DataIntegrityException, QueryExecutionException, DatabaseConnectionException{
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.createUserContact(String, String, String)");
-		}
-		
-		Map<String, String> userContactMap = null;
-		PreparedStatement preparedStatement = null;
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-
-		String contactId = null;
-		try{
-			contactId = getContactId(contactType, contactDetail);
-		}catch(Exception e){
-			contactId = commonUtils.getUniqueGeneratedId("CNTCT", null);
-		}
-
-		try{
-			connection.setAutoCommit(false);
-			String sqlQuery = "INSERT INTO contact_tb (contact_id, contact_type, contact_detail) VALUES (?, ?, ?)";
-			
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			
-			preparedStatement.setNString(1, contactId);
-			preparedStatement.setNString(2, contactType);
-			preparedStatement.setNString(3, contactDetail);
-			
-			preparedStatement.execute();
-			preparedStatement.close();
-			
-			sqlQuery = "INSERT INTO user_contact_tb (user_id, contact_id, is_primary_contact ) VALUES (?, ?, ?)";
-			preparedStatement = connection.prepareStatement(sqlQuery);
-			
-			preparedStatement.setNString(1, userId);
-			preparedStatement.setNString(2, contactId);
-			preparedStatement.setBoolean(3, isPrimaryContact);
-			
-			preparedStatement.execute();
-			connection.commit();
-			
-			userContactMap = getUserContactDetails(userId, contactId);
-		}catch(SQLException e){
-			try{
-				connection.rollback();
-			} catch (SQLException e1) {
-				logger.warn(e1.getMessage());
-			}
-			throw new QueryExecutionException(e);
-		}catch(DataNotFoundException e){
-			logger.error(e.toString());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				preparedStatement.close();
-				connection.setAutoCommit(true);
-
-				connection.close();
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-			preparedStatement = null;
-			connection = null;
-		}
-		
-		return userContactMap;
-	}
-
-	public Map<String, String> updateUserPassword(String userId, String emailId, String password, Connection connection) 
-										throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		Map<String, String> userProfileMap = null;
-		
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.updateUserPassword(String, String, String, Connection)");
-		}
-		
-		boolean isNewConnection = (connection == null);
-		
-		Statement statement1 = null;
-		Statement statement2 = null;
-		
-		try{
-			if(isNewConnection){
-				connection = databaseConnection.getDatabaseConnection(databaseName);
-				connection.setAutoCommit(false);
-			}
-			
-			String decodedPassword = encryptionDecryptionUtils.decodeToBase64String(password);
-			String hashedPassword = encryptionDecryptionUtils.hashToBase64String(decodedPassword);
-			
-			String sqlQuery1 = "UPDATE user_tb SET password = '" + hashedPassword + "', status = null WHERE user_id = '" + userId + "'";
-			statement1 = connection.createStatement();
-
-			statement1.executeUpdate(sqlQuery1);
-			
-			String comments = "User unlocked @ " + commonUtils.getCurrentTimestampAsString();
-			
-			String sqlQuery2 = "UPDATE user_activity_tb SET locked_on = null, comments = '" + comments + "' WHERE user_id = '" + userId + "'";
-			
-			statement2 = connection.createStatement();
-
-			statement2.executeUpdate(sqlQuery2);
-			
-			if(isNewConnection){
-				connection.commit();
-			}	
-		}catch (SQLException e){
-			try {
-				if(isNewConnection){
-					connection.rollback();
-				}	
-			} catch (SQLException e1) {
-				logger.warn(e1.getMessage());
-			}
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				if(statement1 != null){
-					statement1.close();
-					statement1 = null;
-				}
-				if(statement2 != null){
-					statement2.close();
-					statement2 = null;
-				}
-				if(isNewConnection){
-					connection.close();
-					connection = null;
-				}	
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-		}
-
-		userProfileMap = getUserProfileDetails(userId, emailId);
-		
-		return userProfileMap;
-	}
-	
-	public Map<String, String> updateUserStatus(String userId, String status, Connection connection) 
-					throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		
-		Map<String, String> userProfileMap = null;
-		
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.updateUserStatus(String, String, Connection)");
-		}
-
-		boolean isNewConnection = (connection == null);
-		
-		Statement statement = null;
-		try{
-			if(isNewConnection){
-				connection = databaseConnection.getDatabaseConnection(databaseName);
-				connection.setAutoCommit(false);
-			}
-			
-			String sqlQuery = null;
-			//String sqlQuery = "UPDATE user_tb SET status = ? WHERE user_id = ?";
-			//System.out.println("Update Query : " + sqlQuery);
-			statement = connection.createStatement();
-			
-			if(StringUtils.isEmpty(status)){
-				sqlQuery = "UPDATE user_tb SET status = null WHERE user_id = '" + userId + "'";
-			}else{
-				sqlQuery = "UPDATE user_tb SET status = '" + status + "' WHERE user_id = '" + userId + "'";
-			}
-			
-			statement.executeUpdate(sqlQuery);
-
-			if(isNewConnection){
-				connection.commit();
-			}
-
-			userProfileMap = getUserProfileDetails(userId, true, connection);
-		}catch (SQLException e){
-			try {
-				if(isNewConnection){
-					connection.rollback();
-				}
-			} catch (SQLException e1) {
-				logger.warn(e1.getMessage());
-			}
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				statement.close();
-				statement = null;
-				
-				if(isNewConnection){
-					connection.close();
-					connection = null;
-				}
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-		}
-		
-		return userProfileMap;
-	}
-	
-	public Map<String, String> updateUserProfile(String userId, String title, String firstName, String middleName, String lastName, 
-													java.util.Date dateOfBirth, String maritalStatus, String profilePictureUrl, 
-														String sex, boolean isPrimaryProfile, Connection connection) 
-						throws DataNotFoundException, DataIntegrityException, QueryExecutionException, DatabaseConnectionException{
-
-		Map<String, String> userProfileMap = null;
-
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.updateUserProfile(String, String, Connection)");
-		}
-		
-		boolean isNewConnection = (connection == null);
-		
-		Statement statement = null;
-		try{
-			if(isNewConnection){
-				connection = databaseConnection.getDatabaseConnection(databaseName);
-				connection.setAutoCommit(false);
-			}
-			
-			String sqlQuery = null;
-			statement = connection.createStatement();
-			
-			//Possibility of two profiles i.e. primary and non-primary. So, need to take care of both of them...
-			sqlQuery = "DELETE FROM user_profile_tb WHERE user_id = '" + userId + "'" + " AND is_primary_profile = " + isPrimaryProfile;
-			statement.executeUpdate(sqlQuery);
-			
-			sqlQuery = "UPDATE user_profile_tb SET is_primary_profile = " + !isPrimaryProfile + " WHERE user_id = '" + userId + "'";
-			statement.executeUpdate(sqlQuery);
-			
-			createUserProfile(userId, title, firstName, middleName, lastName, sex, dateOfBirth, 
-													maritalStatus,	profilePictureUrl, isPrimaryProfile, connection);
-						
-			if(isNewConnection){
-				connection.commit();
-			}
-
-			userProfileMap = getUserProfileDetails(userId, isPrimaryProfile, connection);
-		}catch (SQLException e){
-			try {
-				if(isNewConnection){
-					connection.rollback();
-				}
-			} catch (SQLException e1) {
-				logger.warn(e1.getMessage());
-			}
-			logger.error(e.getMessage());
-			throw new QueryExecutionException(e);
-		}finally{
-			try {
-				statement.close();
-				statement = null;
-				
-				if(isNewConnection){
-					connection.close();
-					connection = null;
-				}
-			} catch (SQLException e) {
-				logger.warn(e.getMessage());
-			}
-		}
-		
-		return userProfileMap;
-	}
-
-	public void reactivateUser(String userId) 
-					throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.reactivateUser(String)");
-		}
-		
-		updateUserStatus(userId, null, null);
-		
-		if(logger.isDebugEnabled()){
-			logger.debug("User {} re-activated successfully..", userId);
-		}
-	}
-
-	public void suspendUser(String userId) 
-					throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.suspendUser(String)");
-		}
-
-		updateUserStatus(userId, "SUSPENDED", null);
-
-		if(logger.isDebugEnabled()){
-			logger.debug("User {} suspended successfully..", userId);
-		}
-	}
-
-	public void deleteUser(String userId) 
-					throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		if(logger.isDebugEnabled()){
-			logger.debug("Inside {}", "ProductLabsDaoManager.suspendUser(String)");
-		}
-
-		updateUserStatus(userId, "DELETED", null);
-
-		if(logger.isDebugEnabled()){
-			logger.debug("User {} deleted successfully..", userId);
-		}
-	}
-
-	public Map<String, String> getUserId(String emailId, String password) 
-					throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		Map<String, String> result = null;
-		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
-		PreparedStatement preparedStatement = null;
-		try{
-			String sqlQuery1 = "SELECT user_id, email_id, password, status, is_real_user, is_guest_user "
-								+ "FROM user_tb "
-								+ "WHERE (status IS NULL OR status <> 'DELETED') AND email_id = ?";
-
-			String sqlQuery2 = "SELECT user_id, email_id, password, status, is_real_user, is_guest_user "
-								+ "FROM user_tb "
-								+ "WHERE (status IS NULL OR status <> 'DELETED') AND email_id = ? AND password = ?";
-
-			if(StringUtils.isEmpty(password)){
-				preparedStatement = connection.prepareStatement(sqlQuery1);
-				preparedStatement.setNString(1, emailId);
-			}else{
-				preparedStatement = connection.prepareStatement(sqlQuery2);
-				preparedStatement.setNString(1, emailId);
-				
-				String decodedPassword = encryptionDecryptionUtils.decodeToBase64String(password);
-				String hashedPassword = encryptionDecryptionUtils.hashToBase64String(decodedPassword);
-				preparedStatement.setNString(2, hashedPassword);
-			}
+			preparedStatement.setNString(1, productId);
 			
 			ResultSet rs = preparedStatement.executeQuery();
 			result = new HashMap<String, String>();
-			
 			while(rs.next()){
-				result.put("emailId", emailId);
+				result.put("productId", productId);
 				
-				String userId = rs.getNString("user_id");
-				result.put("userId", userId);
-				result.put("clientId", userId);
-
-				password = rs.getNString("password");
-				result.put("password", password);
+				String name = rs.getNString("name");
+				result.put("name", name);
+				
+				String type = rs.getNString("type");
+				result.put("type", type);
+				
+				String subType = rs.getNString("sub_type");
+				result.put("subType", subType);
+				
+				String shortDescription = rs.getNString("short_description");
+				result.put("shortDescription", shortDescription);
+				
+				String searchTags = rs.getNString("search_tags");
+				result.put("searchTags", searchTags);
 				
 				String status = rs.getNString("status");
 				result.put("status", status);
+
+				boolean isProduct = rs.getBoolean("is_product");
+				result.put("isProduct", Boolean.toString(isProduct));
+
+				boolean isPackage = rs.getBoolean("is_package");
+				result.put("isPackage", Boolean.toString(isPackage));
+
+				boolean isService = rs.getBoolean("is_service");
+				result.put("isService", Boolean.toString(isService));
+
+				String thumbnailImageUrl = rs.getNString("thumbnail_image_url");
+				result.put("thumbnailImageUrl", thumbnailImageUrl);
+
+				int rank = rs.getInt("rank");
+				result.put("rank", Integer.toString(rank));
+
+				String freeText = rs.getNString("free_text");
+				result.put("freeText", freeText);
+
+				String aboutThisLine1 = rs.getNString("about_this_line1");
+				result.put("aboutThisLine1", aboutThisLine1);
+
+				String aboutThisLine1Type = rs.getNString("about_this_line1_type");
+				result.put("aboutThisLine1Type", aboutThisLine1Type);
+
+				String aboutThisLine2 = rs.getNString("about_this_line2");
+				result.put("aboutThisLine2", aboutThisLine2);
+
+				String aboutThisLine2Type = rs.getNString("about_this_line2_type");
+				result.put("aboutThisLine2Type", aboutThisLine2Type);
+
+				String aboutThisLine3 = rs.getNString("about_this_line3");
+				result.put("aboutThisLine3", aboutThisLine3);
+
+				String aboutThisLine3Type = rs.getNString("about_this_line3_type");
+				result.put("aboutThisLine3Type", aboutThisLine3Type);
+
+				String usefulTips = rs.getNString("useful_tips");
+				result.put("usefulTips", usefulTips);
+
+				String externalBlogUrl = rs.getNString("external_blog_url");
+				result.put("externalBlogUrl", externalBlogUrl);
+
+				String mediumSizeImage1Url = rs.getNString("medium_size_image1_url");
+				result.put("mediumSizeImage1Url", mediumSizeImage1Url);
+
+				String mediumSizeImage1Text = rs.getNString("medium_size_image1_text");
+				result.put("mediumSizeImage1Text", mediumSizeImage1Text);
+
+				String mediumSizeImage2Url = rs.getNString("medium_size_image2_url");
+				result.put("mediumSizeImage2Url", mediumSizeImage2Url);
+
+				String mediumSizeImage2Text = rs.getNString("medium_size_image2_text");
+				result.put("mediumSizeImage2Text", mediumSizeImage2Text);
+
+				String mediumSizeImage3Url = rs.getNString("medium_size_image3_url");
+				result.put("mediumSizeImage3Url", mediumSizeImage3Url);
+
+				String mediumSizeImage3Text = rs.getNString("medium_size_image3_text");
+				result.put("mediumSizeImage3Text", mediumSizeImage3Text);
+
+				String largeSizeImageUrl = rs.getNString("large_size_image_url");
+				result.put("largeSizeImageUrl", largeSizeImageUrl);
+
+				String largeSizeImageText = rs.getNString("large_size_image_text");
+				result.put("largeSizeImageText", largeSizeImageText);
 				
-				boolean isRealUser = rs.getBoolean("is_real_user");
-				result.put("isRealUser", Boolean.toString(isRealUser));
-
-				boolean isGuestUser = rs.getBoolean("is_guest_user");
-				result.put("isGuestUser", Boolean.toString(isGuestUser));
-
 				break;
 			}
 			
 			if(result.isEmpty()){
-				if(StringUtils.isEmpty(password)){
-					throw new DataNotFoundException("Either user email id doesn't exist or user has been deleted.");
-				}else{
-					throw new DataNotFoundException("Either user email id doesn't exist or password doesn't match or user has been deleted.");
-				}
+				throw new DataNotFoundException("Product either doesn't exist or has been deleted.");
 			}
 		}catch (SQLException e){
 			logger.error(e.getMessage());
@@ -1446,40 +467,374 @@ public class ProductLabsDaoManager {
 		}finally{
 			try {
 				preparedStatement.close();
+				preparedStatement = null;
+				
 				connection.close();
+				connection = null;
 			} catch (SQLException e) {
 				logger.warn(e.getMessage());
 			}
-			preparedStatement = null;
-			connection = null;
 		}
 		
-		return result; 
+		return result;
 	}
 
-	public String getUserStatus(String userId) 
-					throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
-		String status = null;
-		String emailId = null;
+	public List<Map<String, String>> searchLabs(Map<String, String> searchCriteriaMap, boolean isLooselyMatched)
+			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
+		
+		List<Map<String, String>> resultList = null;
+		HashMap<String, String> result = null;
+		
+		if(logger.isDebugEnabled()){
+			logger.debug("Inside {}", "ProductLabsDaoManager.searchLabs(Map<String, String>, boolean)");
+		}
+		
 		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
+		
 		PreparedStatement preparedStatement = null;
+		
 		try{
-			String sqlQuery = "SELECT user_id, email_id, password, status FROM user_tb WHERE user_id = ?";
+			boolean geoCodeSearchExists = false;
+			
+			String latitude = null; 
+			String longitude = null;
+			String radialSearchUnit = null;
+			String radialSearchUom = null;
+			
+			if(searchCriteriaMap.containsKey("latitude") && searchCriteriaMap.containsKey("longitude")){
+				geoCodeSearchExists = true;
+				
+				if(searchCriteriaMap.containsKey("latitude")){
+					latitude = searchCriteriaMap.get("latitude");
+					searchCriteriaMap.remove("latitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("longitude")){
+					longitude = searchCriteriaMap.get("longitude");
+					searchCriteriaMap.remove("longitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("radialSearchUnit")){
+					radialSearchUnit = searchCriteriaMap.get("radialSearchUnit");
+					searchCriteriaMap.remove("radialSearchUnit");
+				}
+				if(StringUtils.isEmpty(radialSearchUnit)){
+					radialSearchUnit = "5";
+				}else{
+					try{
+						Float.parseFloat(radialSearchUnit);
+					}catch(Exception e){
+						radialSearchUnit = "5";
+						logger.warn("The radialSearchUnit parameter value (" + radialSearchUnit + ") is not valid. It will be set to the default value instead.");
+					}	
+				}
+				
+				if(StringUtils.isEmpty(radialSearchUom)){
+					radialSearchUom = searchCriteriaMap.get("radialSearchUom");
+					searchCriteriaMap.remove("radialSearchUom");
+				}
+				if((StringUtils.isEmpty(radialSearchUom)) || ("kms".equalsIgnoreCase(radialSearchUom))){
+					radialSearchUom = "kms";
+					logger.warn("The radialSearchUom parameter value (" + radialSearchUom + ") is valid. It will be set to i.e. kms instead.");
+				}else{
+					radialSearchUom = "miles";
+					logger.warn("The radialSearchUom parameter value (" + radialSearchUom + ") is not valid. It will be set to the default value i.e. miles instead.");
+				}
+			} else{
+				if(searchCriteriaMap.containsKey("latitude")){
+					searchCriteriaMap.remove("latitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("longitude")){
+					searchCriteriaMap.remove("longitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("radialSearchUnit")){
+					searchCriteriaMap.remove("radialSearchUnit");
+				}
+
+				if(StringUtils.isEmpty(radialSearchUom)){
+					searchCriteriaMap.remove("radialSearchUom");
+				}
+			}
+		
+			String sqlQuery = "SELECT labs_tb.lab_id AS lab_id, name, group_name, parent_lab_id, status, "
+										+ "short_description, thumbnail_image_url, address_line1, address_line2, locality_name, "
+										+ "city_town_or_village, state, country, pin_code, landmark, lat AS latitude, lng AS longitude, "
+										+ "useful_tips, external_reviews_url, medium_size_image1_url, medium_size_image1_text, "
+										+ "medium_size_image2_url, medium_size_image2_text, medium_size_image3_url, "
+										+ "medium_size_image3_text, large_size_image_url, large_size_image_text, rank, "
+										+ commonUtils.getRadialDistanceQueryPart(latitude, longitude, radialSearchUom) 
+										+ "FROM labs_tb, labs_details_tb, labs_ranking_tb "
+										+ "WHERE labs_tb.lab_id = labs_details_tb.lab_id "
+										+ "AND labs_tb.lab_id = labs_ranking_tb.lab_id "
+										+ "AND (status IS NULL OR status <> 'DELETED')"; 
+			
+			String searchClause = getLabsSearchClause(searchCriteriaMap, isLooselyMatched);
+			
+			if(! StringUtils.isEmpty(searchClause)){
+				sqlQuery = sqlQuery + " AND " + searchClause;
+			}
+
+			if(geoCodeSearchExists){
+				sqlQuery = sqlQuery + " HAVING distance <= " + radialSearchUnit;	
+			}
+			
+			String orderByClause = " ORDER BY rank DESC ";
+
+			sqlQuery = sqlQuery + orderByClause;
+			
+			if(logger.isInfoEnabled()) {
+				logger.info("SQL Search Query --> " + sqlQuery);
+			}
+			
 			preparedStatement = connection.prepareStatement(sqlQuery);
-			preparedStatement.setNString(1, userId);
 			
 			ResultSet rs = preparedStatement.executeQuery();
+			resultList = new ArrayList<Map<String, String>>();
 			
 			while(rs.next()){
-				status = rs.getNString("status");
-				emailId = rs.getNString("email_id");
+				result = new HashMap<String, String>();
+				
+				String labId = rs.getNString("lab_id");
+				result.put("labId", labId);
+				
+				String name = rs.getNString("name");
+				result.put("name", name);
+				
+				String shortDescription = rs.getNString("short_description");
+				result.put("shortDescription", shortDescription);
+				
+				String groupName = rs.getNString("group_name");
+				result.put("groupName", groupName);
+				
+				String parentLabId = rs.getNString("parent_lab_id");
+				result.put("parentLabId", parentLabId);
+				
+				String status = rs.getNString("status");
+				result.put("status", status);
+				
+				String thumbnailImageUrl = rs.getNString("thumbnail_image_url");
+				result.put("thumbnailImageUrl", thumbnailImageUrl);
+				
+				String addressLine1 = rs.getNString("address_line1");
+				result.put("addressLine1", addressLine1);
+				
+				String addressLine2 = rs.getNString("address_line2");
+				result.put("addressLine2", addressLine2);
+				
+				String localityName = rs.getNString("locality_name");
+				result.put("localityName", localityName);
+				
+				String cityTownOrVillage = rs.getNString("city_town_or_village");
+				result.put("cityTownOrVillage", cityTownOrVillage);
+				
+				String state = rs.getNString("state");
+				result.put("state", state);
+
+				String country = rs.getNString("country");
+				result.put("country", country);
+
+				String pinCode = rs.getNString("pin_code");
+				result.put("cityTownOrVillage", pinCode);
+
+				String landmark = rs.getNString("landmark");
+				result.put("landmark", landmark);
+
+				Float lat = rs.getFloat("latitude");
+				result.put("latitude", Float.toString(lat));
+				
+				Float lng = rs.getFloat("longitude");
+				result.put("longitude", Float.toString(lng));
+				
+				Float distance = rs.getFloat("distance");
+				result.put("distance", Float.toString(distance));
+
+				result.put("distanceUom", radialSearchUom);
+				
+				int rank = rs.getInt("rank");
+				result.put("rank", Integer.toString(rank));
+				
+				String usefulTips = rs.getNString("useful_tips");
+				result.put("usefulTips", usefulTips);
+				
+				String externalReviewsUrl = rs.getNString("external_reviews_url");
+				result.put("externalReviewsUrl", externalReviewsUrl);
+				
+				String mediumSizeImage1Url = rs.getNString("medium_size_image1_url");
+				result.put("mediumSizeImage1Url", mediumSizeImage1Url);
+				
+				String mediumSizeImage1Text = rs.getNString("medium_size_image1_text");
+				result.put("mediumSizeImage1Text", mediumSizeImage1Text);
+				
+				String mediumSizeImage2Url = rs.getNString("medium_size_image2_url");
+				result.put("mediumSizeImage2Url", mediumSizeImage2Url);
+				
+				String mediumSizeImage2Text = rs.getNString("medium_size_image2_text");
+				result.put("mediumSizeImage2Text", mediumSizeImage2Text);
+				
+				String mediumSizeImage3Url = rs.getNString("medium_size_image3_url");
+				result.put("mediumSizeImage3Url", mediumSizeImage3Url);
+				
+				String mediumSizeImage3Text = rs.getNString("medium_size_image3_text");
+				result.put("mediumSizeImage3Text", mediumSizeImage3Text);
+				
+				String largeSizeImageUrl = rs.getNString("large_size_image_url");
+				result.put("largeSizeImageUrl", largeSizeImageUrl);
+				
+				String largeSizeImageText = rs.getNString("large_size_image_text");
+				result.put("largeSizeImageText", largeSizeImageText);
+				
+				resultList.add(result);
+			}
+			
+			if(resultList.isEmpty()){
+				throw new DataNotFoundException("Labs matching the search criteria either don't exist or they have been deleted.");
+			}
+		}catch (SQLException e){
+			logger.error(e.getMessage());
+			throw new QueryExecutionException(e);
+		}finally{
+			try {
+				preparedStatement.close();
+				preparedStatement = null;
+				
+				connection.close();
+				connection = null;
+			} catch (SQLException e) {
+				logger.warn(e.getMessage());
+			}
+		}
+		
+		return resultList;
+	}
+	
+	public Map<String, String> getLabDetails(String labId)
+			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
+		
+		HashMap<String, String> result = null;
+		
+		if(logger.isDebugEnabled()){
+			logger.debug("Inside {}", "ProductLabsDaoManager.getLabDetails(String)");
+		}
+		
+		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
+		
+		PreparedStatement preparedStatement = null;
+		
+		try{
+			String sqlQuery = "SELECT labs_tb.lab_id AS lab_id, name, group_name, parent_lab_id, status, "
+										+ "short_description, thumbnail_image_url, address_line1, address_line2, locality_name, "
+										+ "city_town_or_village, state, country, pin_code, landmark, lat AS latitude, lng AS longitude, "
+										+ "useful_tips, external_reviews_url, medium_size_image1_url, medium_size_image1_text, "
+										+ "medium_size_image2_url, medium_size_image2_text, medium_size_image3_url, "
+										+ "medium_size_image3_text, large_size_image_url, large_size_image_text, rank, '-1' AS distance "
+										+ "FROM labs_tb, labs_details_tb, labs_ranking_tb "
+										+ "WHERE labs_tb.lab_id = labs_details_tb.lab_id "
+										+ "AND labs_tb.lab_id = labs_ranking_tb.lab_id "
+										+ "AND labs_tb.lab_id = ?  "
+										+ "AND (status IS NULL OR status <> 'DELETED')"; 	
+			
+			preparedStatement = connection.prepareStatement(sqlQuery);
+			preparedStatement.setNString(1, labId);
+			
+			ResultSet rs = preparedStatement.executeQuery();
+			result = new HashMap<String, String>();
+
+			while(rs.next()){
+				result.put("labId", labId);
+				
+				String name = rs.getNString("name");
+				result.put("name", name);
+				
+				String shortDescription = rs.getNString("short_description");
+				result.put("shortDescription", shortDescription);
+				
+				String groupName = rs.getNString("group_name");
+				result.put("groupName", groupName);
+				
+				String parentLabId = rs.getNString("parent_lab_id");
+				result.put("parentLabId", parentLabId);
+				
+				String status = rs.getNString("status");
+				result.put("status", status);
+				
+				String thumbnailImageUrl = rs.getNString("thumbnail_image_url");
+				result.put("thumbnailImageUrl", thumbnailImageUrl);
+				
+				String addressLine1 = rs.getNString("address_line1");
+				result.put("addressLine1", addressLine1);
+				
+				String addressLine2 = rs.getNString("address_line2");
+				result.put("addressLine2", addressLine2);
+				
+				String localityName = rs.getNString("locality_name");
+				result.put("localityName", localityName);
+				
+				String cityTownOrVillage = rs.getNString("city_town_or_village");
+				result.put("cityTownOrVillage", cityTownOrVillage);
+				
+				String state = rs.getNString("state");
+				result.put("state", state);
+
+				String country = rs.getNString("country");
+				result.put("country", country);
+
+				String pinCode = rs.getNString("pin_code");
+				result.put("cityTownOrVillage", pinCode);
+
+				String landmark = rs.getNString("landmark");
+				result.put("landmark", landmark);
+				
+				Float lat = rs.getFloat("latitude");
+				result.put("latitude", Float.toString(lat));
+				
+				Float lng = rs.getFloat("longitude");
+				result.put("longitude", Float.toString(lng));
+				
+				Float distance = rs.getFloat("distance");
+				result.put("distance", Float.toString(distance));
+
+				result.put("distanceUom", "kms");
+				
+				int rank = rs.getInt("rank");
+				result.put("rank", Integer.toString(rank));
+				
+				String usefulTips = rs.getNString("useful_tips");
+				result.put("usefulTips", usefulTips);
+				
+				String externalReviewsUrl = rs.getNString("external_reviews_url");
+				result.put("externalReviewsUrl", externalReviewsUrl);
+				
+				String mediumSizeImage1Url = rs.getNString("medium_size_image1_url");
+				result.put("mediumSizeImage1Url", mediumSizeImage1Url);
+				
+				String mediumSizeImage1Text = rs.getNString("medium_size_image1_text");
+				result.put("mediumSizeImage1Text", mediumSizeImage1Text);
+				
+				String mediumSizeImage2Url = rs.getNString("medium_size_image2_url");
+				result.put("mediumSizeImage2Url", mediumSizeImage2Url);
+				
+				String mediumSizeImage2Text = rs.getNString("medium_size_image2_text");
+				result.put("mediumSizeImage2Text", mediumSizeImage2Text);
+				
+				String mediumSizeImage3Url = rs.getNString("medium_size_image3_url");
+				result.put("mediumSizeImage3Url", mediumSizeImage3Url);
+				
+				String mediumSizeImage3Text = rs.getNString("medium_size_image3_text");
+				result.put("mediumSizeImage3Text", mediumSizeImage3Text);
+				
+				String largeSizeImageUrl = rs.getNString("large_size_image_url");
+				result.put("largeSizeImageUrl", largeSizeImageUrl);
+				
+				String largeSizeImageText = rs.getNString("large_size_image_text");
+				result.put("largeSizeImageText", largeSizeImageText);
+				
 				break;
 			}
 			
-			if(StringUtils.isEmpty(emailId)){
-				throw new DataNotFoundException("User doesn't exist.");
-			}else{
-				status = (StringUtils.isEmpty(status)) ? "ACTIVE" : status.toUpperCase();
+			if(result.isEmpty()){
+				throw new DataNotFoundException("Lab either doesn't exist or has been deleted.");
 			}
 		}catch (SQLException e){
 			logger.error(e.getMessage());
@@ -1487,15 +842,308 @@ public class ProductLabsDaoManager {
 		}finally{
 			try {
 				preparedStatement.close();
+				preparedStatement = null;
+				
 				connection.close();
+				connection = null;
 			} catch (SQLException e) {
 				logger.warn(e.getMessage());
 			}
-			preparedStatement = null;
-			connection = null;
 		}
 		
-		return status; 
+		return result;
+	}
+
+	private String getLabsProductsSearchClause(Map<String, String> searchCriteriaMap, boolean isLooselyMatched){
+		if((searchCriteriaMap == null) || (searchCriteriaMap.isEmpty())){
+			return null;
+		}
+		
+		StringBuffer searchClauseBuffer = new StringBuffer();
+		boolean firstSearchClauseAdded = false;
+		
+		for(Map.Entry<String, String> entry : searchCriteriaMap.entrySet()){
+			if(firstSearchClauseAdded){
+				searchClauseBuffer.append((isLooselyMatched) ? " OR " : " AND ");
+			}else{
+				firstSearchClauseAdded = true;
+			}
+			
+			if(entry.getKey().equals("productId")){
+				searchClauseBuffer.append(" product_tb.product_id = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("productName")){
+				searchClauseBuffer.append(" product_tb.name = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("type")){
+				searchClauseBuffer.append(" product_tb.type = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("subType")){
+				String value = entry.getValue().trim();
+				
+				if(StringUtils.isEmpty(value)){
+					searchClauseBuffer.append(" product_tb.sub_type IS NULL ");
+				}else{
+					searchClauseBuffer.append(" product_tb.sub_type = '").append(entry.getValue()).append("'");
+				}
+			}
+			
+			if(entry.getKey().equals("searchTags")){
+				searchClauseBuffer.append(getSearchTagsClause(entry.getValue()));
+			}
+
+			if(entry.getKey().equals("labId")){
+				searchClauseBuffer.append(" labs_tb.lab_id = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("labName")){
+				searchClauseBuffer.append(" labs_tb.name = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("groupName")){
+				searchClauseBuffer.append(" labs_tb.group_name = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("localityName")){
+				searchClauseBuffer.append(" labs_details_tb.locality_name = '").append(entry.getValue()).append("'");
+			}
+			
+			if(entry.getKey().equals("cityTownOrVillage")){
+				searchClauseBuffer.append(" labs_details_tb.city_town_or_village = '").append(entry.getValue()).append("'");
+			}
+
+			if(entry.getKey().equals("state")){
+				searchClauseBuffer.append(" labs_details_tb.state = '").append(entry.getValue()).append("'");
+			}
+			
+			if(entry.getKey().equals("country")){
+				searchClauseBuffer.append(" labs_details_tb.country = '").append(entry.getValue()).append("'");
+			}
+		}
+		
+		String searchClause = searchClauseBuffer.toString().trim();
+		if(! StringUtils.isEmpty(searchClause)){
+			searchClause = "( " + searchClause + " )"; 
+		}
+		
+		return searchClause;
+	} 
+	
+	public List<Map<String, String>> searchLabsProducts(Map<String, String> searchCriteriaMap, boolean isLooselyMatched)
+			throws DataNotFoundException, QueryExecutionException, DatabaseConnectionException{
+		
+		List<Map<String, String>> resultList = null;
+		HashMap<String, String> result = null;
+		
+		if(logger.isDebugEnabled()){
+			logger.debug("Inside {}", "ProductLabsDaoManager.searchLabsProducts(Map<String, String>, boolean)");
+		}
+		
+		Connection connection = databaseConnection.getDatabaseConnection(databaseName);
+		
+		PreparedStatement preparedStatement = null;
+		
+		try{
+			boolean geoCodeSearchExists = false;
+			
+			String latitude = null; 
+			String longitude = null;
+			String radialSearchUnit = null;
+			String radialSearchUom = null;
+			
+			if(searchCriteriaMap.containsKey("latitude") && searchCriteriaMap.containsKey("longitude")){
+				geoCodeSearchExists = true;
+				
+				if(searchCriteriaMap.containsKey("latitude")){
+					latitude = searchCriteriaMap.get("latitude");
+					searchCriteriaMap.remove("latitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("longitude")){
+					longitude = searchCriteriaMap.get("longitude");
+					searchCriteriaMap.remove("longitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("radialSearchUnit")){
+					radialSearchUnit = searchCriteriaMap.get("radialSearchUnit");
+					searchCriteriaMap.remove("radialSearchUnit");
+				}
+				if(StringUtils.isEmpty(radialSearchUnit)){
+					radialSearchUnit = "5";
+				}else{
+					try{
+						Float.parseFloat(radialSearchUnit);
+					}catch(Exception e){
+						radialSearchUnit = "5";
+						logger.warn("The radialSearchUnit parameter value (" + radialSearchUnit + ") is not valid. It will be set to the default value instead.");
+					}	
+				}
+				
+				if(StringUtils.isEmpty(radialSearchUom)){
+					radialSearchUom = searchCriteriaMap.get("radialSearchUom");
+					searchCriteriaMap.remove("radialSearchUom");
+				}
+				if((StringUtils.isEmpty(radialSearchUom)) || ("kms".equalsIgnoreCase(radialSearchUom))){
+					radialSearchUom = "kms";
+					logger.warn("The radialSearchUom parameter value (" + radialSearchUom + ") is valid. It will be set to i.e. kms instead.");
+				}else{
+					radialSearchUom = "miles";
+					logger.warn("The radialSearchUom parameter value (" + radialSearchUom + ") is not valid. It will be set to the default value i.e. miles instead.");
+				}
+			} else{
+				if(searchCriteriaMap.containsKey("latitude")){
+					searchCriteriaMap.remove("latitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("longitude")){
+					searchCriteriaMap.remove("longitude");
+				}
+				
+				if(searchCriteriaMap.containsKey("radialSearchUnit")){
+					searchCriteriaMap.remove("radialSearchUnit");
+				}
+
+				if(StringUtils.isEmpty(radialSearchUom)){
+					searchCriteriaMap.remove("radialSearchUom");
+				}
+			}
+			
+			String sqlQuery = "SELECT product_tb.product_id AS product_id, product_tb.name AS product_name, "
+										+ "product_tb.type AS product_type, product_tb.sub_type AS product_sub_type, "
+										+ "product_tb.short_description AS product_short_description, product_tb.search_tags AS product_search_tags, "
+										+ "product_tb.status AS product_status, product_tb.is_product, product_tb.is_package, product_tb.is_service, "
+										+ "product_tb.thumbnail_image_url AS product_thumbnail_image_url, product_ranking_tb.rank AS product_rank, "
+										+ "unit_price, currency_code, uom, promo_type, promo_value, "
+										+ "labs_tb.lab_id AS lab_id, labs_tb.name AS lab_name, labs_tb.group_name AS lab_group_name, "
+										+ "labs_tb.short_description AS lab_short_description, labs_tb.parent_lab_id AS parent_lab_id, "
+										+ "labs_tb.status AS lab_status, labs_tb.thumbnail_image_url AS lab_thumbnail_image_url, "
+										+ "labs_details_tb.lat AS latitude, labs_details_tb.lng AS longitude, "
+										+ "labs_ranking_tb.rank AS lab_rank, "
+										+ commonUtils.getRadialDistanceQueryPart(latitude, longitude, radialSearchUom) 
+										+ "FROM labs_tb, labs_details_tb, labs_ranking_tb, promo_pricing_tb, "
+										+ "product_tb, product_ranking_tb, product_details_tb "
+										+ "WHERE labs_tb.lab_id = labs_details_tb.lab_id "
+										+ "AND labs_tb.lab_id = labs_ranking_tb.lab_id "
+										+ "AND promo_pricing_tb.lab_id = labs_tb.lab_id "
+										+ "AND product_tb.product_id = promo_pricing_tb.product_id "
+										+ "AND product_tb.product_id = product_details_tb.product_id "
+										+ "AND product_tb.product_id = product_ranking_tb.product_id "
+										+ "AND (labs_tb.status IS NULL OR labs_tb.status <> 'DELETED') "
+										+ "AND (product_tb.status IS NULL OR product_tb.status <> 'DELETED')"; 
+
+			String rankBy = null;
+			if(searchCriteriaMap.containsKey("rankBy")){
+				rankBy = searchCriteriaMap.get("rankBy");
+				if((StringUtils.isEmpty(rankBy) || (!"products".equalsIgnoreCase(rankBy)))){
+					rankBy = "labs";
+				}
+				
+				searchCriteriaMap.remove("rankBy");
+			}
+			
+			String searchClause = getLabsProductsSearchClause(searchCriteriaMap, isLooselyMatched);
+			
+			if(! StringUtils.isEmpty(searchClause)){
+				sqlQuery = sqlQuery + " AND " + searchClause;
+			}
+
+			if(geoCodeSearchExists){
+				sqlQuery = sqlQuery + " HAVING distance <= " + radialSearchUnit;	
+			}
+			
+			String orderByClause = null;
+			if("labs".equalsIgnoreCase(rankBy)){
+				orderByClause = " ORDER BY labs_ranking_tb.rank DESC, labs_tb.lab_id ASC, product_ranking_tb.rank DESC ";
+			}else{
+				orderByClause = " ORDER BY product_ranking_tb.rank DESC, product_tb.product_id ASC, labs_ranking_tb.rank DESC ";
+			}
+			
+			sqlQuery = sqlQuery + orderByClause;
+			
+			if(logger.isInfoEnabled()) {
+				logger.info("SQL Search Query --> " + sqlQuery);
+			}
+			
+			preparedStatement = connection.prepareStatement(sqlQuery);
+			
+			ResultSet rs = preparedStatement.executeQuery();
+			resultList = new ArrayList<Map<String, String>>();
+			
+			while(rs.next()){
+				result = new HashMap<String, String>();
+				
+				String labId = rs.getNString("lab_id");
+				result.put("labId", labId);
+				
+				String productName = rs.getNString("product_name");
+				result.put("productName", productName);
+				
+				String labName = rs.getNString("lab_name");
+				result.put("labName", labName);
+				
+				String labShortDescription = rs.getNString("lab_short_description");
+				result.put("labShortDescription", labShortDescription);
+				
+				String labGroupName = rs.getNString("lab_group_name");
+				result.put("labGroupName", labGroupName);
+				
+				String parentLabId = rs.getNString("parent_lab_id");
+				result.put("parentLabId", parentLabId);
+				
+				String productStatus = rs.getNString("product_status");
+				result.put("productStatus", productStatus);
+				
+				String labStatus = rs.getNString("lab_status");
+				result.put("labStatus", labStatus);
+
+				String productThumbnailImageUrl = rs.getNString("product_thumbnail_image_url");
+				result.put("productThumbnailImageUrl", productThumbnailImageUrl);
+				
+				String labThumbnailImageUrl = rs.getNString("lab_thumbnail_image_url");
+				result.put("labThumbnailImageUrl", labThumbnailImageUrl);
+
+				Float lat = rs.getFloat("latitude");
+				result.put("latitude", Float.toString(lat));
+				
+				Float lng = rs.getFloat("longitude");
+				result.put("longitude", Float.toString(lng));
+				
+				Float distance = rs.getFloat("distance");
+				result.put("distance", Float.toString(distance));
+
+				result.put("distanceUom", radialSearchUom);
+				
+				int labRank = rs.getInt("lab_rank");
+				result.put("labRank", Integer.toString(labRank));
+				
+				int productRank = rs.getInt("product_rank");
+				result.put("productRank", Integer.toString(productRank));
+				
+				resultList.add(result);
+			}
+			
+			if(resultList.isEmpty()){
+				throw new DataNotFoundException("Labs and Products matching the search criteria either don't exist or they have been deleted.");
+			}
+		}catch (SQLException e){
+			logger.error(e.getMessage());
+			throw new QueryExecutionException(e);
+		}finally{
+			try {
+				preparedStatement.close();
+				preparedStatement = null;
+				
+				connection.close();
+				connection = null;
+			} catch (SQLException e) {
+				logger.warn(e.getMessage());
+			}
+		}
+		
+		return resultList;
 	}
 
 	public static void main(String[] args) throws Exception{
@@ -1506,7 +1154,7 @@ public class ProductLabsDaoManager {
 		String DATABASE_DRIVER = "com.mysql.jdbc.Driver";
 		String DATABASE_URL = "jdbc:mysql://localhost:3306/{0}";
 	    String DATABASE_USERNAME = "bGFiaXp5X3VzZXI=";
-	    String DATABASE_PASSWORD = "bGFiaXp5X3VzZXJfMDA3";
+	    String DATABASE_PASSWORD = "bGFiaXp5X3VzZXIwMDc=";
 
 	    System.setProperty("environ", "local");
 	    EncryptionDecryptionUtils encryptionDecryptionUtils = new EncryptionDecryptionUtils();
@@ -1538,114 +1186,69 @@ public class ProductLabsDaoManager {
 		
 		daoMgr.setDatabaseConnection(databaseConnection);
 		daoMgr.setCommonUtils(commonUtils);
-		daoMgr.setDatabaseName("labizy_user_db");
+		daoMgr.setDatabaseName("labizy_product_labs_db");
 		daoMgr.setEncryptionDecryptionUtils(encryptionDecryptionUtils);
+/*		
+		String productId = "PRD-1487008527275-6353-4358";
 		
-		String emailId = "prashant.kunal@labizy.com";
-		String base64EncodedPassword = "JDNjcjN0"; //String password = "$3cr3t";
-		
-		String userId = null;
-		String status = null;
 		Map<String, String> result = null;
+		result = daoMgr.getProductDetails(productId);
+		System.out.println(result);
 		
-		System.out.println("Calling getUserId(" + emailId + ")");
-		try{
-			result = daoMgr.getUserId(emailId, null);
-			userId = result.get("userId");
-			System.out.println("User Id : " + userId);
-		}catch(Exception e){
-			System.err.println(e);
-		}
+		List<Map<String, String>> results = null;
+		results = daoMgr.searchProducts(null, true);
+		System.out.println(results);
 		
-		System.out.println("Calling createUser(" + emailId + "," + base64EncodedPassword +")");
-		try{
-			userId = daoMgr.createUser(emailId, base64EncodedPassword);
-			System.out.println("UserId : " + userId);
-		}catch(Exception e){
-			System.err.println(e);
-		}
+		String searchTagsClause = daoMgr.getSearchTagsClause("Thyro    Test Liver  ");
+		System.out.println(searchTagsClause);
 		
-		System.out.println("Calling getUser(" + emailId + ")");
-		try{
-			result = daoMgr.getUserId(emailId, null);
-			userId = result.get("userId");
-			System.out.println("User Id : " + userId);
-		}catch(Exception e){
-			System.err.println(e);
-		}
+		Map<String, String> searchCriteriaMap1 = new HashMap<String, String>();
+		searchCriteriaMap1.put("productId", "PRD-1487008527275-6353-4358");
+		searchCriteriaMap1.put("type", "ThyroidTest");
+		searchCriteriaMap1.put("searchTags", "Thyro    Test Liver  ");
 		
-/*
-		System.out.println("Calling createUserProfile(" + userId + ")");
-		Map<String, String> userProfileMap = null;
-		try{
-			userProfileMap = daoMgr.createUserProfile(userId, "Mr", "Prashant", null, "Kunal", "Male", 
-										commonUtils.getStringAsDate("30-06-1976"), "Married", null, true);
-			System.out.println("Created profile for : " + userId);
-			System.out.println(userProfileMap.toString());
-		}catch(Exception e){
-			System.err.println(e);
-		}
+		String searchClause = daoMgr.getProductsSearchClause(searchCriteriaMap1, true);
+		System.out.println(searchClause);
+		
+		searchCriteriaMap1.put("subType", "");
+		searchClause = daoMgr.getProductsSearchClause(searchCriteriaMap1, false);
+		System.out.println(searchClause);
+		
+		results = daoMgr.searchProducts(searchCriteriaMap1, false);
+		System.out.println(results);
 
-		System.out.println("Calling createUserContact(" + userId + ")");
-		Map<String, String> userUserContactMap = null;
-		try{
-			System.out.println("Create Mobile Contact for : " + userId);
-			userUserContactMap = daoMgr.createUserContact(userId, "Mobile", "+91 9845426646", true);
-			System.out.println(userUserContactMap.toString());
-			
-			System.out.println("Create Secondary Mobile Contact for : " + userId);
-			userUserContactMap = daoMgr.createUserContact(userId, "Mobile", "+91 9945519876", false);
-			System.out.println(userUserContactMap.toString());
-			
-			System.out.println("Get Primary Mobile Contact of : " + userId);
-			userUserContactMap = daoMgr.getUserContactDetails(userId, "Mobile", true);
-			System.out.println(userUserContactMap.toString());
-			
-			System.out.println("Get Secondary Mobile Contact of : " + userId);
-			userUserContactMap = daoMgr.getUserContactDetails(userId, "Mobile", false);
-			System.out.println(userUserContactMap.toString());
-		}catch(Exception e){
-			System.err.println(e);
-		}
-
-		System.out.println("Calling createUserAddress(" + userId + ")");
-		Map<String, String> userUserAddressMap = null;
-		try{
-			userUserAddressMap = daoMgr.createUserAddress(userId, "102", "Pavan Fantasy", "16th Cross, 8th Main", 
-					"BEML Layout, Thubrahalli", "Bangalore", "Karnataka", "India", "560066", 
-					"Near FASO Shoppe", null, null, true, true);
-			System.out.println("Create address for : " + userId);
-			System.out.println(userUserAddressMap.toString());
-			
-			System.out.println("Get Billing Address of : " + userId);
-			userUserAddressMap = daoMgr.getUserBillingAddressDetails(userId);
-			System.out.println(userUserAddressMap.toString());
-			
-			System.out.println("Get Primary Address of : " + userId);
-			userUserAddressMap = daoMgr.getUserPrimaryAddressDetails(userId);
-			System.out.println(userUserAddressMap.toString());
-		}catch(Exception e){
-			System.err.println(e);
-		}
-*/
-		System.out.println("Calling suspendUser(" + userId + ")");
-		try{
-			daoMgr.suspendUser(userId);
-			status = daoMgr.getUserStatus(userId);
-			System.out.println("Status : " + status);
-		}catch(Exception e){
-			System.err.println(e);
-		}
-/*
-		System.out.println("Calling reactivateUser(" + userId + ")");
-		try{
-			daoMgr.reactivateUser(userId);
-			status = daoMgr.getUserStatus(userId);
-			System.out.println("Status : " + status);
-		}catch(Exception e){
-			System.err.println(e);
-		}
+		String labId = "LAB-1487008939288-6901-9191";
+		result = daoMgr.getLabDetails(labId);
+		System.out.println(result);
+		
+		Map<String, String> searchCriteriaMap2 = new HashMap<String, String>();
+		searchCriteriaMap2.put("latitude", "12.92");
+		searchCriteriaMap2.put("longitude", "77.58");
+		searchCriteriaMap2.put("radialSearchUnit", "10");
+		searchCriteriaMap2.put("radialSearchUom", "kms");
+		searchCriteriaMap2.put("labId", "LAB-1487008939288-6901-9191");
+		searchCriteriaMap2.put("country", "India");
+		
+		List<Map<String, String>> results2 = null;
+		results2 = daoMgr.searchLabs(searchCriteriaMap2, true);
+		System.out.println(results2);
 */		
-		System.out.println("Ok.. That's it....");
+		Map<String, String> searchCriteriaMap3 = new HashMap<String, String>();
+		searchCriteriaMap3.put("latitude", "12.92");
+		searchCriteriaMap3.put("longitude", "77.58");
+		searchCriteriaMap3.put("radialSearchUnit", "10");
+		searchCriteriaMap3.put("radialSearchUom", "kms");
+		searchCriteriaMap3.put("labId", "LAB-1487008939288-6901-9191");
+		searchCriteriaMap3.put("country", "India");
+		//searchCriteriaMap3.put("productId", "PRD-1487008527275-6353-4358");
+		searchCriteriaMap3.put("type", "ThyroidTest");
+		searchCriteriaMap3.put("searchTags", "Thyro    Test Liver  ");
+		//searchCriteriaMap3.put("rankBy", "products");
+		searchCriteriaMap3.put("rankBy", "labs");
+		
+		List<Map<String, String>> results3 = null;
+		results3 = daoMgr.searchLabsProducts(searchCriteriaMap3, true);
+		System.out.println(results3);
+	
 	}
 }

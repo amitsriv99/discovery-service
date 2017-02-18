@@ -23,10 +23,6 @@
 			</property>
 		</bean>
 		
-		<bean id="CommonProperties" class="com.labizy.services.content.beans.PropertiesBean">
-			<property name="environSystemPropertyName" value="environ"/>
-		</bean>
-		
 		<bean id="CommonUtils" class="com.labizy.services.content.utils.CommonUtils">
 			<property name="commonProperties" ref="CommonProperties"/>
 			<property name="seed" value="-1"/>

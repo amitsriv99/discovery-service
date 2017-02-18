@@ -39,7 +39,10 @@ public final class DatabaseConnection {
 		Connection dbConnection = null;
 		
 		try {
-			Class.forName(propertiesBuilder.getEnvironProperties().getDatabaseDriver());
+			PropertiesBean environProperties = propertiesBuilder.getEnvironProperties();
+			String driver = environProperties.getDatabaseDriver();
+			
+			Class.forName(driver);
 		} catch(EnvironNotDefPropertiesBuilderException e){
 			logger.error(e.getMessage());
 			throw new DatabaseConnectionException(e);

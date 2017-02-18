@@ -1,19 +1,24 @@
 package com.labizy.services.content.dao.adapter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
+import com.labizy.services.content.beans.GeoLocationBean;
+import com.labizy.services.content.beans.LabDetailsBean;
+import com.labizy.services.content.beans.LabDetailsResultBean;
+import com.labizy.services.content.beans.SearchCriteriaBean;
 import com.labizy.services.content.dao.manager.ProductLabsDaoManager;
-import com.labizy.services.content.exceptions.DataIntegrityException;
 import com.labizy.services.content.exceptions.DataNotFoundException;
 import com.labizy.services.content.exceptions.DatabaseConnectionException;
+import com.labizy.services.content.exceptions.DiscoveryItemsNotFoundException;
+import com.labizy.services.content.exceptions.DiscoveryItemsProcessingException;
 import com.labizy.services.content.exceptions.QueryExecutionException;
-import com.labizy.services.content.exceptions.ServiceException;
-import com.labizy.services.content.exceptions.UniqueKeyViolationException;
 import com.labizy.services.content.utils.CommonUtils;
 
 public class ProductLabsDaoAdapter {
@@ -21,284 +26,215 @@ public class ProductLabsDaoAdapter {
 	
 	private ProductLabsDaoManager productLabsDaoManager;
 	private CommonUtils commonUtils;
-/*
-	public String createUser(UserCredentialsBean userCredentials) throws ServiceException{
-		String userId = null;
-		try {
-			userId = productLabsDaoManager.createUser(userCredentials.getEmailId(), userCredentials.getPassword());
-		} catch (UniqueKeyViolationException e) {
-			appLogger.error(e.getMessage());
-			appLogger.error(e.getCause().getMessage());
-			throw new ServiceException(e);
-		} catch (DataIntegrityException e) {
-			appLogger.error(e.getMessage());
-			appLogger.error(e.getCause().getMessage());
-			throw new ServiceException(e);
-		} catch (QueryExecutionException e) {
-			appLogger.error(e.getMessage());
-			appLogger.error(e.getCause().getMessage());
-			throw new ServiceException(e);
-		} catch (DatabaseConnectionException e) {
-			appLogger.error(e.getMessage());
-			appLogger.error(e.getCause().getMessage());
-			throw new ServiceException(e);
-		}
-		
-		return  userId;
+
+	public void setProductLabsDaoManager(ProductLabsDaoManager productLabsDaoManager) {
+		this.productLabsDaoManager = productLabsDaoManager;
 	}
-	
-	public UserProfileBean createUserProfile(String userId, UserProfileBean userProfileBean) throws ServiceException{
-		UserProfileBean createdUserProfileBean = null;
-		Map<String, String> userProfileMap = null;
+
+	public void setCommonUtils(CommonUtils commonUtils) {
+		this.commonUtils = commonUtils;
+	}
+
+	private LabDetailsBean getLabDetails(Map<String, String> labDetailsMap){
+		LabDetailsBean labDetailsBean = new LabDetailsBean();
 		
-		try {
-			userProfileMap = productLabsDaoManager.createUserProfile(userId, 
-																		userProfileBean.getTitle(), 
-																		userProfileBean.getFirstName(), 
-																		userProfileBean.getMiddleName(), 
-																		userProfileBean.getLastName(), 
-																		userProfileBean.getSex(), 
-																		commonUtils.getStringAsDate(userProfileBean.getDateOfBirth()), 
-																		userProfileBean.getMaritalStatus(), 
-																		userProfileBean.getProfilePicture(), 
-																		Boolean.parseBoolean(userProfileBean.getIsPrimaryProfile()),
-																		null);
-			createdUserProfileBean = getUserProfileDetails(userProfileMap);
-		} catch (DataIntegrityException e) {
-			appLogger.error(e.getMessage());
-			appLogger.error(e.getCause().getMessage());
-			throw new ServiceException(e);
-		} catch (QueryExecutionException e) {
-			appLogger.error(e.getMessage());
-			appLogger.error(e.getCause().getMessage());
-			throw new ServiceException(e);
-		} catch (DatabaseConnectionException e) {
-			appLogger.error(e.getMessage());
-			appLogger.error(e.getCause().getMessage());
-			throw new ServiceException(e);
-		}
+		GeoLocationBean geoLocationBean = new GeoLocationBean();
+		labDetailsBean.setGeoLocation(geoLocationBean);
 		
-		return createdUserProfileBean;
-	}	
-	
-	public UserContactsDetailsBean createUserContact(String userId, UserContactsDetailsBean userContacts) throws ServiceException{
-		UserContactsDetailsBean createdContacts = null;
-		List<Map<String, String>> userContactsList = null;
-		if((userContacts.getContactDetail() != null) && (userContacts.getContactDetail().size() > 0)){
-			userContactsList = new ArrayList<Map<String, String>>();
+		for(Map.Entry<String, String> entry : labDetailsMap.entrySet()){
+			if(entry.getKey().equals("labId")){
+				labDetailsBean.setLabId(entry.getValue());
+			}
+
+			if(entry.getKey().equals("name")){
+				labDetailsBean.setName(entry.getValue());
+			}
+
+			if(entry.getKey().equals("groupName")){
+				labDetailsBean.setGroup(entry.getValue());
+			}
+
+			if(entry.getKey().equals("parentLabId")){
+				labDetailsBean.setParentLabId(entry.getValue());
+			}
+
+			if(entry.getKey().equals("status")){
+				labDetailsBean.setStatus(entry.getValue());
+			}
+
+			if(entry.getKey().equals("thumbnailImageUrl")){
+				labDetailsBean.setThumbnailImageUrl(entry.getValue());
+			}
+						
+			if(entry.getKey().equals("addressLine1")){
+				labDetailsBean.setAddressLine1(entry.getValue());
+			}
+
+			if(entry.getKey().equals("addressLine2")){
+				labDetailsBean.setAddressLine2(entry.getValue());
+			}
 			
-			for(UserContactBean userContact : userContacts.getContactDetail()){
-				Map<String, String> contactMap = null;
-				try {
-					contactMap = productLabsDaoManager.createUserContact(userId, 
-															userContact.getContactType(), 
-															userContact.getContactDetail(), 
-															Boolean.parseBoolean(userContact.getIsPrimaryContact()));
-				} catch (DataIntegrityException e) {
-					appLogger.error(e.getMessage());
-					appLogger.error(e.getCause().getMessage());
-					throw new ServiceException(e);
-				} catch (QueryExecutionException e) {
-					appLogger.error(e.getMessage());
-					appLogger.error(e.getCause().getMessage());
-					throw new ServiceException(e);
-				} catch (DatabaseConnectionException e) {
-					appLogger.error(e.getMessage());
-					appLogger.error(e.getCause().getMessage());
-					throw new ServiceException(e);
+			if(entry.getKey().equals("localityName")){
+				labDetailsBean.setLocality(entry.getValue());
+			}
+
+			if(entry.getKey().equals("cityTownOrVillage")){
+				labDetailsBean.setCity(entry.getValue());
+			}
+
+			if(entry.getKey().equals("landmark")){
+				labDetailsBean.setLandmark(entry.getValue());
+			}
+
+			if(entry.getKey().equals("state")){
+				labDetailsBean.setState(entry.getValue());
+			}
+
+			if(entry.getKey().equals("country")){
+				labDetailsBean.setCountry(entry.getValue());
+			}
+
+			if(entry.getKey().equals("pinCode")){
+				labDetailsBean.setPostalCode(entry.getValue());
+			}
+
+			if(entry.getKey().equals("latitude")){
+				labDetailsBean.getGeoLocation().setLatitude(entry.getValue());
+			}
+
+			if(entry.getKey().equals("longitude")){
+				labDetailsBean.getGeoLocation().setLongitude(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("distance")){
+				if((! StringUtils.isEmpty(entry.getValue())) && (! "-1".equals(entry.getValue()))){
+					labDetailsBean.setDistanceFromPoi(entry.getValue());
+					labDetailsBean.setDistanceFromPoiUom(labDetailsMap.get("distanceUom"));
+				} else{
+					labDetailsBean.setDistanceFromPoi(null);
+					labDetailsBean.setDistanceFromPoiUom(null);
 				}
+			}
 			
-				userContactsList.add(contactMap);
+			if(entry.getKey().equals("rank")){
+				labDetailsBean.setRank(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("usefulTips")){
+				labDetailsBean.setUsefulTips(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("externalReviewsUrl")){
+				labDetailsBean.setExternalReviewsUrl(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("mediumSizeImage1Url")){
+				labDetailsBean.setMediumSizeImage1Url(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("mediumSizeImage1Text")){
+				labDetailsBean.setMediumSizeImage1Text(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("mediumSizeImage2Url")){
+				labDetailsBean.setMediumSizeImage2Url(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("mediumSizeImage2Text")){
+				labDetailsBean.setMediumSizeImage2Text(entry.getValue());
+			}
+
+			if(entry.getKey().equals("mediumSizeImage3Url")){
+				labDetailsBean.setMediumSizeImage3Url(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("mediumSizeImage3Text")){
+				labDetailsBean.setMediumSizeImage3Text(entry.getValue());
+			}
+
+			if(entry.getKey().equals("largeSizeImageUrl")){
+				labDetailsBean.setLargeSizeImageUrl(entry.getValue());
+			}
+			
+			if(entry.getKey().equals("largeSizeImageText")){
+				labDetailsBean.setLargeSizeImageText(entry.getValue());
 			}
 		}
-		createdContacts = getUserContactDetails(userContactsList);
 		
-		return createdContacts;
+		return labDetailsBean;
 	}
 
-	public UserAddressDetailsBean createUserAddress(String userId, UserAddressDetailsBean addressDetails) throws ServiceException{
-		UserAddressDetailsBean createdAddressDetails = null;
-
-		List<Map<String, String>> userAddressList = null;
-		if((addressDetails.getAddressDetail() != null) && (addressDetails.getAddressDetail().size() > 0)){
-			userAddressList = new ArrayList<Map<String, String>>();
+	public List<LabDetailsBean> loadLabDetailsBean(SearchCriteriaBean searchCriteriaBean) 
+									throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
+		
+		List<LabDetailsBean> results = null;
+		
+		try {
+			boolean isLooselyMatched = true;
+			Map<String, String> searchCriteriaMap = new HashMap<String, String>();
 			
-			for(UserAddressBean userAddress : addressDetails.getAddressDetail()){
-				Map<String, String> addressMap = null;
-				try {
-					addressMap = productLabsDaoManager.createUserAddress(userId, 
-											userAddress.getHouseOrFlatNumber(), 
-											userAddress.getHouseOrApartmentName(), 
-											userAddress.getStreetAddress(), 
-											userAddress.getLocalityName(), 
-											userAddress.getCity(), 
-											userAddress.getState(), 
-											userAddress.getCountry(), 
-											userAddress.getPinCode(), 
-											userAddress.getLandmark(), 
-											(userAddress.getLatitude() == null) ? null : Double.parseDouble(userAddress.getLatitude()), 
-											(userAddress.getLongitude() == null) ? null : Double.parseDouble(userAddress.getLongitude()), 
-											Boolean.parseBoolean(userAddress.getIsPrimaryAddress()), 
-											Boolean.parseBoolean(userAddress.getIsBillingAddress()));
-							
-				} catch (DataIntegrityException e) {
-					appLogger.error(e.getMessage());
-					appLogger.error(e.getCause().getMessage());
-					throw new ServiceException(e);
-				} catch (QueryExecutionException e) {
-					appLogger.error(e.getMessage());
-					appLogger.error(e.getCause().getMessage());
-					throw new ServiceException(e);
-				} catch (DatabaseConnectionException e) {
-					appLogger.error(e.getMessage());
-					appLogger.error(e.getCause().getMessage());
-					throw new ServiceException(e);
-				}
-			
-				userAddressList.add(addressMap);
-			}
-		}
-		createdAddressDetails = getUserAddressDetails(userAddressList);
-		
-		return createdAddressDetails;
-	}
-	
-	public UserProfileDetailsResultBean updateUserPassword(UserProfileDetailsBean userProfileDetailsBean) throws ServiceException, UserDoesNotExistException {
-		UserProfileDetailsResultBean userProfileDetailsResultBean = null;
-		Map<String, String> userProfileMap = null;
-		
-		if(appLogger.isDebugEnabled()){
-			appLogger.debug("Inside {}", "ProductLabsDaoAdapter.updateUserPassword()");
-		}
-		
-		String userId = userProfileDetailsBean.getUserProfile().getUserId();
-		String emailId = userProfileDetailsBean.getUserLogin().getEmailId();
-		String password = userProfileDetailsBean.getUserLogin().getPassword();
-		
-		try {
-			userProfileMap = productLabsDaoManager.updateUserPassword(userId, emailId, password, null);
-		} catch (DataNotFoundException e) {
-			throw new UserDoesNotExistException(e);			
-		} catch (Exception e) {
-			throw new ServiceException(e);
-		}
-		
-		userProfileDetailsResultBean = new UserProfileDetailsResultBean();
-		UserProfileBean userProfileBean = getUserProfileDetails(userProfileMap);
-		userProfileDetailsResultBean.setUserProfile(userProfileBean);
-		
-		UserCredentialsBean userLoginCredentialsBean = getUserLoginDetails(userProfileMap);
-		userProfileDetailsResultBean.setUserLogin(userLoginCredentialsBean);
-		
-		return userProfileDetailsResultBean;
-	}
-	
-	public UserProfileDetailsResultBean updateUserStatus(UserProfileDetailsBean userProfileDetailsBean) throws ServiceException, UserDoesNotExistException {
-		UserProfileDetailsResultBean userProfileDetailsResultBean = null;
-		Map<String, String> userProfileMap = null;
-		
-		if(appLogger.isDebugEnabled()){
-			appLogger.debug("Inside {}", "ProductLabsDaoAdapter.updateUserStatus()");
-		}
-		
-		String userId = userProfileDetailsBean.getUserProfile().getUserId();
-		String status = userProfileDetailsBean.getUserLogin().getStatus();
-
-		try {
-			userProfileMap = productLabsDaoManager.updateUserStatus(userId, status, null);
-		} catch (DataNotFoundException e) {
-			throw new UserDoesNotExistException(e);			
-		} catch (Exception e) {
-			throw new ServiceException(e);
-		}
-		
-		userProfileDetailsResultBean = new UserProfileDetailsResultBean();
-		UserProfileBean userProfileBean = getUserProfileDetails(userProfileMap);
-		userProfileDetailsResultBean.setUserProfile(userProfileBean);
-		
-		UserCredentialsBean userLoginCredentialsBean = getUserLoginDetails(userProfileMap);
-		userProfileDetailsResultBean.setUserLogin(userLoginCredentialsBean);
-		
-		return userProfileDetailsResultBean;
-	}
-
-	public UserProfileDetailsResultBean updateUserProfile(UserProfileDetailsBean userProfileDetailsBean) throws ServiceException, UserDoesNotExistException {
-		UserProfileDetailsResultBean userProfileDetailsResultBean = null;
-		Map<String, String> userProfileMap = null;
-		
-		if(appLogger.isDebugEnabled()){
-			appLogger.debug("Inside {}", "ProductLabsDaoAdapter.updateUserProfile()");
-		}
-		
-		String userId = userProfileDetailsBean.getUserProfile().getUserId();
-		
-		boolean isPrimaryProfile = true;
-		try{
-			isPrimaryProfile = Boolean.parseBoolean(userProfileDetailsBean.getUserProfile().getIsPrimaryProfile());
-		} catch(Exception e){
-			//Assume it's for the primary profile
-			isPrimaryProfile = true;
-		}
-		
-		String title = userProfileDetailsBean.getUserProfile().getTitle();
-		String firstName = userProfileDetailsBean.getUserProfile().getFirstName();
-		String middleName = userProfileDetailsBean.getUserProfile().getMiddleName();
-		String lastName = userProfileDetailsBean.getUserProfile().getLastName();
-		
-		String dob = userProfileDetailsBean.getUserProfile().getDateOfBirth();
-		String dobFormat = userProfileDetailsBean.getUserProfile().getDateOfBirthFormat();
-		java.util.Date dateOfBirth = commonUtils.getStringAsDate(dob, dobFormat);
-		
-		String maritalStatus = userProfileDetailsBean.getUserProfile().getMaritalStatus();
-		String profilePictureUrl = userProfileDetailsBean.getUserProfile().getProfilePicture();
-		String sex = userProfileDetailsBean.getUserProfile().getSex();
-		
-		try {
-			userProfileMap = productLabsDaoManager.updateUserProfile(userId, title, firstName, middleName, lastName, dateOfBirth, 
-																			maritalStatus, profilePictureUrl, sex, isPrimaryProfile, null);
-		} catch (DataNotFoundException e) {
-			throw new UserDoesNotExistException(e);			
-		} catch (Exception e) {
-			throw new ServiceException(e);
-		}
-		
-		userProfileDetailsResultBean = new UserProfileDetailsResultBean();
-		UserProfileBean userProfileBean = getUserProfileDetails(userProfileMap);
-		userProfileDetailsResultBean.setUserProfile(userProfileBean);
-		
-		UserCredentialsBean userLoginCredentialsBean = getUserLoginDetails(userProfileMap);
-		userProfileDetailsResultBean.setUserLogin(userLoginCredentialsBean);
-		
-		return userProfileDetailsResultBean;
-	}
-	
-	private boolean isUserProfileQualifiedForUpdate(UserProfileBean newUserProfileBean, UserProfileBean existingUserProfileBean){
-		boolean result = false;
-		
-		if((newUserProfileBean != null) && (existingUserProfileBean != null)){
-			FieldComparator fieldComparator = new FieldComparator();
-			List<String> fieldsToCompare = fieldComparator.getDeclaredFields(newUserProfileBean);
-			for (String field : fieldsToCompare) {
-				boolean isFieldValueSame = fieldComparator.isFieldValueSame(field, newUserProfileBean, existingUserProfileBean);
+			if(searchCriteriaBean != null){
+				isLooselyMatched = searchCriteriaBean.isLenient();
 				
-				if(! isFieldValueSame){
-					result = true;
-					break;
-				}
+				searchCriteriaMap.put("latitude", Float.toString(searchCriteriaBean.getLatitude()));
+				searchCriteriaMap.put("longitude", Float.toString(searchCriteriaBean.getLongitude()));
+				searchCriteriaMap.put("radialSearchUnit", Float.toString(searchCriteriaBean.getRadialSearchUnit()));
+				searchCriteriaMap.put("radialSearchUom", searchCriteriaBean.getRadialSearchUom());
 			}
+			
+			List<Map<String, String>> labsDetailsList = productLabsDaoManager.searchLabs(searchCriteriaMap, isLooselyMatched);
+
+			results = new ArrayList<LabDetailsBean>();
+
+			if(appLogger.isInfoEnabled()){
+				appLogger.info(labsDetailsList.toString());
+			}
+			
+			for (Map<String, String> resultMap : labsDetailsList) {
+				LabDetailsBean labDetailsBean = getLabDetails(resultMap);
+				
+				results.add(labDetailsBean);
+			}
+		} catch (DataNotFoundException e) {
+			throw new DiscoveryItemsNotFoundException(e);
+		} catch (QueryExecutionException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		} catch (DatabaseConnectionException e) {
+			throw new DiscoveryItemsProcessingException(e);
 		}
 		
-		return result;
+		return results;
 	}
 	
-	private boolean compareAndUpdateProfileDetails(UserProfileDetailsBean newUserProfileDetailsBean, UserProfileDetailsResultBean existingUserProfileDetailsBean){
-		boolean isProfileUpdated = false;
+	public LabDetailsResultBean loadLabDetailsBean(String labId) 
+									throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		
-		boolean isProfileQualifiedForUpdate = isUserProfileQualifiedForUpdate(newUserProfileDetailsBean.getUserProfile(), existingUserProfileDetailsBean.getUserProfile());
+		LabDetailsResultBean labDetailsResultBean = null;
+		Map<String, String> labDetailsMap =null;
 		
-		return isProfileUpdated;
+		try {
+			labDetailsMap = productLabsDaoManager.getLabDetails(labId);
+			
+			if(appLogger.isInfoEnabled()){
+				appLogger.info(labDetailsMap.toString());
+			}
+			
+			LabDetailsBean labDetailsBean = getLabDetails(labDetailsMap);
+			
+			labDetailsResultBean = new LabDetailsResultBean();
+			labDetailsResultBean.setLabDetails(labDetailsBean);
+		} catch (DataNotFoundException e) {
+			throw new DiscoveryItemsNotFoundException(e);
+		} catch (QueryExecutionException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		} catch (DatabaseConnectionException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		}
+		
+		return labDetailsResultBean;
 	}
 	
+	/*
 	public UserProfileDetailsResultBean getUserProfileDetails(String userId, boolean isPrimaryProfile) throws ServiceException, UserDoesNotExistException {
 		UserProfileDetailsResultBean userProfileDetailsResultBean = null;
 		
@@ -518,11 +454,5 @@ public class ProductLabsDaoAdapter {
 		return;
 	}
 */
-	public void setCommonUtils(CommonUtils commonUtils) {
-		this.commonUtils = commonUtils;
-	}
 
-	public void setUserProfileDaoManager(ProductLabsDaoManager productLabsDaoManager) throws ServiceException{
-		this.productLabsDaoManager = productLabsDaoManager;
-	}
 }

@@ -10,6 +10,9 @@ public class LabBean {
 	  private String labId;
 	  private String name;
 	  private String group;
+	  private String parentLabId;
+	  private String status;
+	  private String thumbnailImageUrl;
 	  private String addressLine1;
 	  private String addressLine2;
 	  private String locality;
@@ -19,7 +22,18 @@ public class LabBean {
 	  private String city;
 	  private String state;
 	  private String country;
-	  private String labDetails;
+	  private String shortDescription;
+	  
+	  private String usefulTips;
+	  private String externalReviewsUrl;
+	  private String mediumSizeImage1Url;
+	  private String mediumSizeImage1Text;
+	  private String mediumSizeImage2Url;
+	  private String mediumSizeImage2Text;
+	  private String mediumSizeImage3Url;
+	  private String mediumSizeImage3Text;
+	  private String largeSizeImageUrl;
+	  private String largeSizeImageText;
 	  
 	  @JsonProperty("labTestsIds")
 	  private ArrayList<String> labTestsIds;
@@ -40,12 +54,44 @@ public class LabBean {
 		this.name = name;
 	}
 
+	public String getShortDescription() {
+		return shortDescription;
+	}
+
+	public void setShortDescription(String shortDescription) {
+		this.shortDescription = shortDescription;
+	}
+
 	public String getGroup() {
 		return group;
 	}
 
 	public void setGroup(String group) {
 		this.group = group;
+	}
+
+	public String getParentLabId() {
+		return parentLabId;
+	}
+
+	public void setParentLabId(String parentLabId) {
+		this.parentLabId = parentLabId;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getThumbnailImageUrl() {
+		return thumbnailImageUrl;
+	}
+
+	public void setThumbnailImageUrl(String thumbnailImageUrl) {
+		this.thumbnailImageUrl = thumbnailImageUrl;
 	}
 
 	public String getAddressLine1() {
@@ -120,12 +166,84 @@ public class LabBean {
 		this.country = country;
 	}
 
-	public String getLabDetails() {
-		return labDetails;
+	public String getUsefulTips() {
+		return usefulTips;
 	}
 
-	public void setLabDetails(String labDetails) {
-		this.labDetails = labDetails;
+	public void setUsefulTips(String usefulTips) {
+		this.usefulTips = usefulTips;
+	}
+
+	public String getExternalReviewsUrl() {
+		return externalReviewsUrl;
+	}
+
+	public void setExternalReviewsUrl(String externalReviewsUrl) {
+		this.externalReviewsUrl = externalReviewsUrl;
+	}
+
+	public String getMediumSizeImage1Url() {
+		return mediumSizeImage1Url;
+	}
+
+	public void setMediumSizeImage1Url(String mediumSizeImage1Url) {
+		this.mediumSizeImage1Url = mediumSizeImage1Url;
+	}
+
+	public String getMediumSizeImage1Text() {
+		return mediumSizeImage1Text;
+	}
+
+	public void setMediumSizeImage1Text(String mediumSizeImage1Text) {
+		this.mediumSizeImage1Text = mediumSizeImage1Text;
+	}
+
+	public String getMediumSizeImage2Url() {
+		return mediumSizeImage2Url;
+	}
+
+	public void setMediumSizeImage2Url(String mediumSizeImage2Url) {
+		this.mediumSizeImage2Url = mediumSizeImage2Url;
+	}
+
+	public String getMediumSizeImage2Text() {
+		return mediumSizeImage2Text;
+	}
+
+	public void setMediumSizeImage2Text(String mediumSizeImage2Text) {
+		this.mediumSizeImage2Text = mediumSizeImage2Text;
+	}
+
+	public String getMediumSizeImage3Url() {
+		return mediumSizeImage3Url;
+	}
+
+	public void setMediumSizeImage3Url(String mediumSizeImage3Url) {
+		this.mediumSizeImage3Url = mediumSizeImage3Url;
+	}
+
+	public String getMediumSizeImage3Text() {
+		return mediumSizeImage3Text;
+	}
+
+	public void setMediumSizeImage3Text(String mediumSizeImage3Text) {
+		this.mediumSizeImage3Text = mediumSizeImage3Text;
+	}
+
+	public String getLargeSizeImageUrl() {
+		return largeSizeImageUrl;
+	}
+
+	public void setLargeSizeImageUrl(String largeSizeImageUrl) {
+		this.largeSizeImageUrl = largeSizeImageUrl;
+	}
+
+	public String getLargeSizeImageText() {
+		return largeSizeImageText;
+	}
+
+	public void setLargeSizeImageText(String largeSizeImageText) {
+		this.largeSizeImageText = largeSizeImageText;
 	}
 
 	public ArrayList<String> getLabTestsIds() {
