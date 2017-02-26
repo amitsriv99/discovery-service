@@ -235,9 +235,8 @@ public class DiscoveryServiceController {
 		return status;
 	}
 	
-	@RequestMapping(value = "/lab-tests/v1/all/{price-promo}", method = RequestMethod.GET, produces="application/json")
-	public @ResponseBody LabTestsSearchResultsBean getLabTests(@PathVariable("price-promo") String pricePromo, 
-																	@RequestParam MultiValueMap<String, String> requestParams,
+	@RequestMapping(value = "/lab-tests/v1/search/", method = RequestMethod.GET, produces="application/json")
+	public @ResponseBody LabTestsSearchResultsBean getLabTests(@RequestParam MultiValueMap<String, String> requestParams,
 																		@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
 																			final HttpServletResponse httpServletResponse){
 		if(appLogger.isDebugEnabled()){
@@ -250,7 +249,7 @@ public class DiscoveryServiceController {
 		
 		LabTestsSearchResultsBean labTestsSearchResultsBean = null;
 		String cacheKey = getSearchCriteriaKey(searchCriteriaBean);
-		String cacheKeyType = ((StringUtils.isEmpty(pricePromo)) ? Constants.LAB_TESTS_CACHE_KEY_TYPE : Constants.PRICE_PROMO_CACHE_KEY_TYPE);
+		String cacheKeyType = (searchCriteriaBean.isIncludeLabs()) ? Constants.PRICE_PROMO_CACHE_KEY_TYPE : Constants.LAB_TESTS_CACHE_KEY_TYPE;
 		
 		String errorCode = "" + HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 		String errorDescription = "Unknown Exception. Please check the DiscoveryService application logs for further details.";
@@ -295,8 +294,8 @@ public class DiscoveryServiceController {
 		return labTestsSearchResultsBean;
 	}
 
-	@RequestMapping(value = "/lab-tests/v1/{id}", method = RequestMethod.GET, produces="application/json")
-	public @ResponseBody LabTestDetailsResultBean getLabTestDetails(@PathVariable("id") String id, 
+	@RequestMapping(value = "/lab-tests/v1/id/{prdId}", method = RequestMethod.GET, produces="application/json")
+	public @ResponseBody LabTestDetailsResultBean getLabTestDetails(@PathVariable("prdId") String prdId, 
 																		@RequestParam MultiValueMap<String, String> requestParams,
 																			@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
 																				final HttpServletResponse httpServletResponse){
@@ -307,7 +306,7 @@ public class DiscoveryServiceController {
 		long startTimestamp = System.currentTimeMillis();
 		
 		LabTestDetailsResultBean labTestDetailsResultBean = null;
-		String cacheKey = id;
+		String cacheKey = prdId;
 		String cacheKeyType = Constants.LAB_TEST_CACHE_KEY_TYPE;
 		
 		String errorCode = Integer.toString(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -328,7 +327,7 @@ public class DiscoveryServiceController {
 				} else{
 					labTestDetailsResultBean = new LabTestDetailsResultBean();
 					labTestDetailsResultBean.setErrorCode(Integer.toString(HttpServletResponse.SC_NOT_FOUND));
-					labTestDetailsResultBean.setErrorDescription("Lab test " + id + " could not be found. Check if it's a valid lab test id and then call the API with a valid id.");
+					labTestDetailsResultBean.setErrorDescription("Lab test " + prdId + " could not be found. Check if it's a valid lab test id and then call the API with a valid id.");
 					
 					httpServletResponse.setStatus(HttpServletResponse.SC_NOT_FOUND);
 				}			
