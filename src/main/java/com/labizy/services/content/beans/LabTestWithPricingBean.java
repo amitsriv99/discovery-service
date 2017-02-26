@@ -3,7 +3,7 @@ package com.labizy.services.content.beans;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class LabTestWithPricingBean extends LabTestBean{
+public class LabTestWithPricingBean extends LabTestDetailsBean{
 	private UnitPriceBean unitPrice;
 
 	public UnitPriceBean getUnitPrice() {

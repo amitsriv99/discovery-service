@@ -854,6 +854,27 @@ public class ProductLabsDaoManager {
 		return result;
 	}
 
+	private String getSplitWithSingleQuotedIds(String commaDelimitedIds){
+		String result = null;
+		StringBuffer buff = null;
+		if(! StringUtils.isEmpty(commaDelimitedIds)){
+			buff = new StringBuffer();
+			String[] idsArr = commaDelimitedIds.split(",");
+			for(int i = 0; i < idsArr.length; i++){
+				String id = idsArr[i];
+				if(! StringUtils.isEmpty(id)){
+					buff.append(", '" + id.trim() + "'");
+				}
+			}
+			
+			result = (buff.length() > 1) ? buff.substring(1) : "''";
+		}else{
+			result = "''";
+		}
+		
+		return result;
+	}
+	
 	private String getLabsProductsSearchClause(Map<String, String> searchCriteriaMap, boolean isLooselyMatched){
 		if((searchCriteriaMap == null) || (searchCriteriaMap.isEmpty())){
 			return null;
@@ -872,7 +893,11 @@ public class ProductLabsDaoManager {
 			if(entry.getKey().equals("productId")){
 				searchClauseBuffer.append(" product_tb.product_id = '").append(entry.getValue()).append("'");
 			}
-
+			
+			if(entry.getKey().equals("productIds")){
+				searchClauseBuffer.append(" product_tb.product_id IN ( ").append(getSplitWithSingleQuotedIds(entry.getValue())).append(" )");
+			}
+			
 			if(entry.getKey().equals("productName")){
 				searchClauseBuffer.append(" product_tb.name = '").append(entry.getValue()).append("'");
 			}
@@ -897,6 +922,10 @@ public class ProductLabsDaoManager {
 
 			if(entry.getKey().equals("labId")){
 				searchClauseBuffer.append(" labs_tb.lab_id = '").append(entry.getValue()).append("'");
+			}
+			
+			if(entry.getKey().equals("labIds")){
+				searchClauseBuffer.append(" labs_tb.lab_id IN ( ").append(getSplitWithSingleQuotedIds(entry.getValue())).append(" )");
 			}
 
 			if(entry.getKey().equals("labName")){
@@ -1075,11 +1104,59 @@ public class ProductLabsDaoManager {
 			while(rs.next()){
 				result = new HashMap<String, String>();
 				
-				String labId = rs.getNString("lab_id");
-				result.put("labId", labId);
+				String productId = rs.getNString("product_id");
+				result.put("productId", productId);
 				
 				String productName = rs.getNString("product_name");
 				result.put("productName", productName);
+				
+				int productRank = rs.getInt("product_rank");
+				result.put("productRank", Integer.toString(productRank));
+				
+				String productType = rs.getNString("product_type");
+				result.put("productType", productType);
+
+				String productSubType = rs.getNString("product_sub_type");
+				result.put("productSubType", productSubType);
+
+				String productShortDescription = rs.getNString("product_short_description");
+				result.put("productShortDescription", productShortDescription);
+
+				String productSearchTags = rs.getNString("product_search_tags");
+				result.put("productSearchTags", productSearchTags);
+
+				boolean isProduct = rs.getBoolean("is_product");
+				result.put("isProduct", Boolean.toString(isProduct));
+				
+				boolean isService = rs.getBoolean("is_service");
+				result.put("isService", Boolean.toString(isService));
+				
+				boolean isPackage = rs.getBoolean("is_package");
+				result.put("isPackage", Boolean.toString(isPackage));
+				
+				String productStatus = rs.getNString("product_status");
+				result.put("productStatus", productStatus);
+				
+				String productThumbnailImageUrl = rs.getNString("product_thumbnail_image_url");
+				result.put("productThumbnailImageUrl", productThumbnailImageUrl);
+				
+				double unitPrice = rs.getDouble("unit_price");
+				result.put("unitPrice", Double.toString(unitPrice));
+
+				String currencyCode = rs.getNString("currency_code");
+				result.put("currencyCode", currencyCode);
+
+				String uom = rs.getNString("uom");
+				result.put("uom", uom);
+
+				String promoType = rs.getNString("promo_type");
+				result.put("promoType", promoType);
+
+				double promoValue = rs.getDouble("promo_value");
+				result.put("promoValue", Double.toString(promoValue));
+				
+				String labId = rs.getNString("lab_id");
+				result.put("labId", labId);
 				
 				String labName = rs.getNString("lab_name");
 				result.put("labName", labName);
@@ -1093,15 +1170,9 @@ public class ProductLabsDaoManager {
 				String parentLabId = rs.getNString("parent_lab_id");
 				result.put("parentLabId", parentLabId);
 				
-				String productStatus = rs.getNString("product_status");
-				result.put("productStatus", productStatus);
-				
 				String labStatus = rs.getNString("lab_status");
 				result.put("labStatus", labStatus);
 
-				String productThumbnailImageUrl = rs.getNString("product_thumbnail_image_url");
-				result.put("productThumbnailImageUrl", productThumbnailImageUrl);
-				
 				String labThumbnailImageUrl = rs.getNString("lab_thumbnail_image_url");
 				result.put("labThumbnailImageUrl", labThumbnailImageUrl);
 
@@ -1118,9 +1189,6 @@ public class ProductLabsDaoManager {
 				
 				int labRank = rs.getInt("lab_rank");
 				result.put("labRank", Integer.toString(labRank));
-				
-				int productRank = rs.getInt("product_rank");
-				result.put("productRank", Integer.toString(productRank));
 				
 				resultList.add(result);
 			}
@@ -1238,7 +1306,8 @@ public class ProductLabsDaoManager {
 		searchCriteriaMap3.put("longitude", "77.58");
 		searchCriteriaMap3.put("radialSearchUnit", "10");
 		searchCriteriaMap3.put("radialSearchUom", "kms");
-		searchCriteriaMap3.put("labId", "LAB-1487008939288-6901-9191");
+		//searchCriteriaMap3.put("labId", "LAB-1487008939288-6901-9191");
+		searchCriteriaMap3.put("labIds", "LAB-1487008939288-6901-9191, LAB-1487008939288-6901-9193");
 		searchCriteriaMap3.put("country", "India");
 		//searchCriteriaMap3.put("productId", "PRD-1487008527275-6353-4358");
 		searchCriteriaMap3.put("type", "ThyroidTest");

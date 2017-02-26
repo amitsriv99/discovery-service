@@ -1,6 +1,7 @@
 package com.labizy.services.content.beans;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,13 +20,13 @@ public class LabDetailsBean extends LabBean {
 	private ImageBean largeSizeImage;
 
 	@JsonProperty("labTests")
-	private ArrayList<LabTestWithPricingPromoBean> labTests;
+	private List<LabTestWithPricingPromoBean> labTests;
 
-	public ArrayList<LabTestWithPricingPromoBean> getLabTests() {
+	public List<LabTestWithPricingPromoBean> getLabTests() {
 		return labTests;
 	}
 
-	public void setLabTests(ArrayList<LabTestWithPricingPromoBean> labTests) {
+	public void setLabTests(List<LabTestWithPricingPromoBean> labTests) {
 		this.labTests = labTests;
 	}
 

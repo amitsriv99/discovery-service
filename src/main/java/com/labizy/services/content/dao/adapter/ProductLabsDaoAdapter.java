@@ -15,7 +15,10 @@ import com.labizy.services.content.beans.LabDetailsResultBean;
 import com.labizy.services.content.beans.LabTestDetailsBean;
 import com.labizy.services.content.beans.LabTestDetailsResultBean;
 import com.labizy.services.content.beans.ImageBean;
+import com.labizy.services.content.beans.LabTestWithPricingPromoBean;
+import com.labizy.services.content.beans.PromotionBean;
 import com.labizy.services.content.beans.SearchCriteriaBean;
+import com.labizy.services.content.beans.UnitPriceBean;
 import com.labizy.services.content.dao.manager.ProductLabsDaoManager;
 import com.labizy.services.content.exceptions.DataNotFoundException;
 import com.labizy.services.content.exceptions.DatabaseConnectionException;
@@ -49,11 +52,15 @@ public class ProductLabsDaoAdapter {
 				labDetailsBean.setLabId(entry.getValue());
 			}
 
-			if(entry.getKey().equals("name")){
+			if((entry.getKey().equals("name")) || (entry.getKey().equals("labName"))){
 				labDetailsBean.setName(entry.getValue());
 			}
-
-			if(entry.getKey().equals("groupName")){
+			
+			if((entry.getKey().equals("shortDescription")) || (entry.getKey().equals("labShortDescription"))){
+				labDetailsBean.setShortDescription(entry.getValue());
+			}
+			
+			if((entry.getKey().equals("groupName")) || (entry.getKey().equals("labGroupName"))){
 				labDetailsBean.setGroup(entry.getValue());
 			}
 
@@ -61,11 +68,11 @@ public class ProductLabsDaoAdapter {
 				labDetailsBean.setParentLabId(entry.getValue());
 			}
 
-			if(entry.getKey().equals("status")){
+			if((entry.getKey().equals("status")) || (entry.getKey().equals("labStatus"))){
 				labDetailsBean.setStatus(entry.getValue());
 			}
 
-			if(entry.getKey().equals("thumbnailImageUrl")){
+			if((entry.getKey().equals("thumbnailImageUrl")) || (entry.getKey().equals("labThumbnailImageUrl"))){
 				labDetailsBean.setThumbnailImageUrl(entry.getValue());
 			}
 						
@@ -119,7 +126,7 @@ public class ProductLabsDaoAdapter {
 				}
 			}
 			
-			if(entry.getKey().equals("rank")){
+			if((entry.getKey().equals("rank")) || (entry.getKey().equals("labRank"))){
 				labDetailsBean.setRank(entry.getValue());
 			}
 			
@@ -167,7 +174,131 @@ public class ProductLabsDaoAdapter {
 		return labDetailsBean;
 	}
 
-	public List<LabDetailsBean> loadLabDetailsBean(SearchCriteriaBean searchCriteriaBean) 
+	public List<LabDetailsBean> loadLabDetailsWithPricePromoInfo (SearchCriteriaBean searchCriteriaBean) 
+			throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
+		
+		List<LabDetailsBean> results = null;
+		try {
+			boolean isLooselyMatched = true;
+			Map<String, String> searchCriteriaMap = new HashMap<String, String>();
+			
+			if(searchCriteriaBean != null){
+				isLooselyMatched = searchCriteriaBean.isLenient();
+				
+				searchCriteriaMap.put("rankBy", "labs");
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductId())){
+					searchCriteriaMap.put("productId", searchCriteriaBean.getProductId());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductIds())){
+					searchCriteriaMap.put("productIds", searchCriteriaBean.getProductIds());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductName())){
+					searchCriteriaMap.put("productName", searchCriteriaBean.getProductName());
+				}
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductSearchTags())){
+					searchCriteriaMap.put("searchTags", searchCriteriaBean.getProductSearchTags());
+				}
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductType())){
+					searchCriteriaMap.put("type", searchCriteriaBean.getProductType());
+				}
+				
+				if(! StringUtils.isEmpty(searchCriteriaBean.getProductSubType())){
+					searchCriteriaMap.put("subType", searchCriteriaBean.getProductSubType());
+				}
+
+				if((searchCriteriaBean.getLatitude() != -1) && (searchCriteriaBean.getLongitude() != -1)){
+					searchCriteriaMap.put("latitude", Float.toString(searchCriteriaBean.getLatitude()));
+					searchCriteriaMap.put("longitude", Float.toString(searchCriteriaBean.getLongitude()));
+					searchCriteriaMap.put("radialSearchUnit", Float.toString(searchCriteriaBean.getRadialSearchUnit()));
+					searchCriteriaMap.put("radialSearchUom", searchCriteriaBean.getRadialSearchUom());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getLabId())){
+					searchCriteriaMap.put("labId", searchCriteriaBean.getLabId());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getLabIds())){
+					searchCriteriaMap.put("labIds", searchCriteriaBean.getLabIds());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getLabName())){
+					searchCriteriaMap.put("labName", searchCriteriaBean.getLabName());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getLabGroupName())){
+					searchCriteriaMap.put("groupName", searchCriteriaBean.getLabGroupName());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getLocalityName())){
+					searchCriteriaMap.put("localityName", searchCriteriaBean.getLocalityName());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getCityTownOrVillage())){
+					searchCriteriaMap.put("cityTownOrVillage", searchCriteriaBean.getCityTownOrVillage());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getState())){
+					searchCriteriaMap.put("state", searchCriteriaBean.getState());
+				}
+
+				if(! StringUtils.isEmpty(searchCriteriaBean.getCountry())){
+					searchCriteriaMap.put("country", searchCriteriaBean.getCountry());
+				}
+			}
+			
+			List<Map<String, String>> labsDetailsList = productLabsDaoManager.searchLabsProducts(searchCriteriaMap, isLooselyMatched);
+
+			results = new ArrayList<LabDetailsBean>();
+
+			if(appLogger.isInfoEnabled()){
+				appLogger.info(labsDetailsList.toString());
+			}
+
+			String lastLabIdProcessed = null;
+			LabDetailsBean labDetailsBean = null;
+			LabTestWithPricingPromoBean labTest = null;
+			List<LabTestWithPricingPromoBean> labTests = null;
+			
+			for (Map<String, String> resultMap : labsDetailsList) {
+				if(StringUtils.isEmpty(lastLabIdProcessed)){
+					lastLabIdProcessed = resultMap.get("labId");
+
+					labDetailsBean = getLabDetails(resultMap);
+					labTests = new ArrayList<LabTestWithPricingPromoBean>();
+					labDetailsBean.setLabTests(labTests);
+					
+					results.add(labDetailsBean);
+				}
+				
+				if(! lastLabIdProcessed.equals(resultMap.get("labId"))){
+					lastLabIdProcessed = resultMap.get("labId");
+					
+					labDetailsBean = getLabDetails(resultMap);
+					labTests = new ArrayList<LabTestWithPricingPromoBean>();
+					labDetailsBean.setLabTests(labTests);
+					results.add(labDetailsBean);
+				}
+
+				labTest = getLabTestDetails(resultMap);
+				labTests.add(labTest);
+			}
+		} catch (DataNotFoundException e) {
+			throw new DiscoveryItemsNotFoundException(e);
+		} catch (QueryExecutionException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		} catch (DatabaseConnectionException e) {
+			throw new DiscoveryItemsProcessingException(e);
+		}
+		
+		return results;
+	}
+	
+	public List<LabDetailsBean> loadLabDetails(SearchCriteriaBean searchCriteriaBean) 
 									throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		
 		List<LabDetailsBean> results = null;
@@ -179,10 +310,12 @@ public class ProductLabsDaoAdapter {
 			if(searchCriteriaBean != null){
 				isLooselyMatched = searchCriteriaBean.isLenient();
 				
-				searchCriteriaMap.put("latitude", Float.toString(searchCriteriaBean.getLatitude()));
-				searchCriteriaMap.put("longitude", Float.toString(searchCriteriaBean.getLongitude()));
-				searchCriteriaMap.put("radialSearchUnit", Float.toString(searchCriteriaBean.getRadialSearchUnit()));
-				searchCriteriaMap.put("radialSearchUom", searchCriteriaBean.getRadialSearchUom());
+				if((searchCriteriaBean.getLatitude() != -1) && (searchCriteriaBean.getLongitude() != -1)){
+					searchCriteriaMap.put("latitude", Float.toString(searchCriteriaBean.getLatitude()));
+					searchCriteriaMap.put("longitude", Float.toString(searchCriteriaBean.getLongitude()));
+					searchCriteriaMap.put("radialSearchUnit", Float.toString(searchCriteriaBean.getRadialSearchUnit()));
+					searchCriteriaMap.put("radialSearchUom", searchCriteriaBean.getRadialSearchUom());
+				}
 			}
 			
 			List<Map<String, String>> labsDetailsList = productLabsDaoManager.searchLabs(searchCriteriaMap, isLooselyMatched);
@@ -209,7 +342,7 @@ public class ProductLabsDaoAdapter {
 		return results;
 	}
 	
-	public LabDetailsResultBean loadLabDetailsBean(String labId) 
+	public LabDetailsResultBean loadLabDetails(String labId) 
 									throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		
 		LabDetailsResultBean labDetailsResultBean = null;
@@ -237,35 +370,36 @@ public class ProductLabsDaoAdapter {
 		return labDetailsResultBean;
 	}
 
-	private LabTestDetailsBean getLabTestDetails(Map<String, String> labTestDetailsMap){
-		LabTestDetailsBean labTestDetailsBean = new LabTestDetailsBean();
+	private LabTestWithPricingPromoBean getLabTestDetails(Map<String, String> labTestDetailsMap){
+		LabTestWithPricingPromoBean labTestDetailsBean = new LabTestWithPricingPromoBean();
 
+		
 		for(Map.Entry<String, String> entry : labTestDetailsMap.entrySet()){
 			if(entry.getKey().equals("productId")){
 				labTestDetailsBean.setId(entry.getValue());
 			}
 
-			if(entry.getKey().equals("name")){
+			if((entry.getKey().equals("name")) || (entry.getKey().equals("productName"))){
 				labTestDetailsBean.setName(entry.getValue());
 			}
 
-			if(entry.getKey().equals("type")){
+			if((entry.getKey().equals("type")) || (entry.getKey().equals("Producttype"))){
 				labTestDetailsBean.setType(entry.getValue());
 			}
 
-			if(entry.getKey().equals("subType")){
+			if((entry.getKey().equals("subType")) || (entry.getKey().equals("productSubType"))){
 				labTestDetailsBean.setSubType(entry.getValue());
 			}
 
-			if(entry.getKey().equals("shortDescription")){
+			if((entry.getKey().equals("shortDescription")) || (entry.getKey().equals("productShortDescription"))){
 				labTestDetailsBean.setShortDescription(entry.getValue());
 			}
 
-			if(entry.getKey().equals("searchTags")){
+			if((entry.getKey().equals("searchTags")) || (entry.getKey().equals("productSearchTags"))){
 				labTestDetailsBean.setTags(entry.getValue());
 			}
 
-			if(entry.getKey().equals("status")){
+			if((entry.getKey().equals("status")) || (entry.getKey().equals("productStatus"))){
 				labTestDetailsBean.setStatus(entry.getValue());
 			}
 
@@ -280,12 +414,31 @@ public class ProductLabsDaoAdapter {
 			if(entry.getKey().equals("isService")){
 				labTestDetailsBean.setIsService(entry.getValue());
 			}
+			
+			if(entry.getKey().equals("unitPrice")){
+				UnitPriceBean unitPriceBean = new UnitPriceBean();
+				
+				unitPriceBean.setUnitPrice(entry.getValue());
+				unitPriceBean.setCurrencyDenomination(labTestDetailsMap.get("currencyCode"));
+				unitPriceBean.setUnitOfMeasurement(labTestDetailsMap.get("uom"));
+				
+				labTestDetailsBean.setUnitPrice(unitPriceBean);
+			}
 
-			if(entry.getKey().equals("thumbnailImageUrl")){
+			if(entry.getKey().equals("promoValue")){
+				PromotionBean promotionBean = new PromotionBean();
+				
+				promotionBean.setPromoValue(entry.getValue());
+				promotionBean.setPromoType(labTestDetailsMap.get("promoType"));
+				
+				labTestDetailsBean.setPromotion(promotionBean);
+			}
+			
+			if((entry.getKey().equals("thumbnailImageUrl")) || (entry.getKey().equals("productThumbnailImageUrl"))){
 				labTestDetailsBean.setThumbnailImageUrl(entry.getValue());
 			}
 
-			if(entry.getKey().equals("rank")){
+			if((entry.getKey().equals("rank")) || (entry.getKey().equals("productRank"))){
 				labTestDetailsBean.setRank(entry.getValue());
 			}
 
@@ -355,7 +508,7 @@ public class ProductLabsDaoAdapter {
 		return labTestDetailsBean;
 	}
 	
-	public List<LabTestDetailsBean> loadLabTestDetailsBean(SearchCriteriaBean searchCriteriaBean) 
+	public List<LabTestDetailsBean> loadLabTestDetails(SearchCriteriaBean searchCriteriaBean) 
 			throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 
 		List<LabTestDetailsBean> results = null;

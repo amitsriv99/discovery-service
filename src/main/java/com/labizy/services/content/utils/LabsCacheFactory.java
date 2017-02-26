@@ -173,7 +173,8 @@ public class LabsCacheFactory {
 							logger.debug("Storing Lab --> LabId: {} in the cache store..", labDetailsResultBean.getLabDetails().getLabId());
 						}
 						
-						if(labDetailsResultBean != null){
+						//Cache only if required and do not cache for price-promo..
+						if((labDetailsResultBean != null) && (! Constants.PRICE_PROMO_CACHE_KEY_TYPE.equals(cacheKeyType))){
 							cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
 							cacheStore.put(cacheKey, cacheObject);
 						}
@@ -194,8 +195,9 @@ public class LabsCacheFactory {
 						if(logger.isDebugEnabled()){
 							logger.debug("Storing Lab --> LabId: {} in the cache store..", labDetailsResultBean.getLabDetails().getLabId());
 						}
-
-						if(labDetailsResultBean != null){
+						
+						//Cache only if required and do not cache for price-promo..
+						if((labDetailsResultBean != null) && (! Constants.PRICE_PROMO_CACHE_KEY_TYPE.equals(cacheKeyType))){
 							cacheObject = new CacheObject(labDetailsResultBean.getLabDetails());
 							cacheStore.put(cacheKey, cacheObject);
 						}
@@ -223,7 +225,7 @@ public class LabsCacheFactory {
 			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String)");
 		}
 		
-		LabDetailsResultBean labDetailsResultBean = productLabsDaoAdapter.loadLabDetailsBean(cacheKey);
+		LabDetailsResultBean labDetailsResultBean = productLabsDaoAdapter.loadLabDetails(cacheKey);
 		
 		return labDetailsResultBean;
 	}
@@ -231,11 +233,17 @@ public class LabsCacheFactory {
 	private List<LabDetailsBean> loadLabsBean(String cacheKeyType, SearchCriteriaBean searchCriteriaBean) 
 								throws DiscoveryItemsNotFoundException, DiscoveryItemsProcessingException{
 		
+		List<LabDetailsBean> labsList = null;
+		
 		if(logger.isDebugEnabled()){
 			logger.debug("Inside {}", "LabsCacheFactory.loadLabTestsBean(String, SearchCriteriaBean)");
 		}
 
-		List<LabDetailsBean> labsList = productLabsDaoAdapter.loadLabDetailsBean(searchCriteriaBean);
+		if(Constants.PRICE_PROMO_CACHE_KEY_TYPE.equals(cacheKeyType)){
+			labsList = productLabsDaoAdapter.loadLabDetailsWithPricePromoInfo(searchCriteriaBean);
+		}else{
+			labsList = productLabsDaoAdapter.loadLabDetails(searchCriteriaBean);
+		}
 		
 		return labsList;
 	}

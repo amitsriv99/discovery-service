@@ -1,8 +1,5 @@
 package com.labizy.services.content.utils;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -11,10 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.labizy.services.content.beans.LabTestBean;
 import com.labizy.services.content.beans.LabTestDetailsBean;
 import com.labizy.services.content.beans.LabTestDetailsResultBean;
 import com.labizy.services.content.beans.LabTestsSearchResultsBean;
@@ -242,7 +235,7 @@ public class LabTestsCacheFactory {
 			logger.debug("Inside {}", "LabTestsCacheFactory.loadLabTestsBean(String, SearchCriteriaBean)");
 		}
 
-		List<LabTestDetailsBean> labTestsList = productLabsDaoAdapter.loadLabTestDetailsBean(searchCriteriaBean);
+		List<LabTestDetailsBean> labTestsList = productLabsDaoAdapter.loadLabTestDetails(searchCriteriaBean);
 
 		return labTestsList;
 	}

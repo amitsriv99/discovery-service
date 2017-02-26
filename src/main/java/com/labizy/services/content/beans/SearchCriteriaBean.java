@@ -1,19 +1,27 @@
 package com.labizy.services.content.beans;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.labizy.services.content.utils.Constants;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SearchCriteriaBean {
+	private boolean includeProducts;
+	private boolean includeLabs;
+	
 	private String productId;
+	private String productIds;
 	private String productName;
 	private String productType;
+	private String productSubType;
 	private String productSearchTags;
 
 	private String labId;
+	private String labIds;
 	private String labName;
 	private String labGroupName;
-
+	private String localityName;
+	private String cityTownOrVillage;
+	private String state;
+	private String country;
 	
 	private String offset;
 	private String limit;
@@ -27,6 +35,8 @@ public class SearchCriteriaBean {
 	
 	public SearchCriteriaBean(){
 		isLenient = true;
+		includeProducts = false;
+		includeLabs = false;
 		latitude = -1;
 		longitude = -1;
 	}
@@ -43,6 +53,22 @@ public class SearchCriteriaBean {
 		return productName;
 	}
 
+	public String getProductIds() {
+		return productIds;
+	}
+
+	public void setProductIds(String productIds) {
+		this.productIds = productIds;
+	}
+
+	public String getLabIds() {
+		return labIds;
+	}
+
+	public void setLabIds(String labIds) {
+		this.labIds = labIds;
+	}
+
 	public void setProductName(String productName) {
 		this.productName = productName;
 	}
@@ -53,6 +79,14 @@ public class SearchCriteriaBean {
 
 	public void setProductType(String productType) {
 		this.productType = productType;
+	}
+
+	public String getProductSubType() {
+		return productSubType;
+	}
+
+	public void setProductSubType(String productSubType) {
+		this.productSubType = productSubType;
 	}
 
 	public String getProductSearchTags() {
@@ -132,5 +166,53 @@ public class SearchCriteriaBean {
 	}
 	public void setRadialSearchUom(String radialSearchUom) {
 		this.radialSearchUom = radialSearchUom;
+	}
+
+	public String getLocalityName() {
+		return localityName;
+	}
+
+	public void setLocalityName(String localityName) {
+		this.localityName = localityName;
+	}
+
+	public String getCityTownOrVillage() {
+		return cityTownOrVillage;
+	}
+
+	public void setCityTownOrVillage(String cityTownOrVillage) {
+		this.cityTownOrVillage = cityTownOrVillage;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public String getCountry() {
+		return country;
+	}
+
+	public void setCountry(String country) {
+		this.country = country;
+	}
+
+	public boolean isIncludeProducts() {
+		return includeProducts;
+	}
+
+	public void setIncludeProducts(boolean includeProducts) {
+		this.includeProducts = includeProducts;
+	}
+
+	public boolean isIncludeLabs() {
+		return includeLabs;
+	}
+
+	public void setIncludeLabs(boolean includeLabs) {
+		this.includeLabs = includeLabs;
 	}
 }

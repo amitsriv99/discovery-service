@@ -1,5 +1,8 @@
 package com.labizy.services.content;
 
+import java.util.Collections;
+import java.util.List;
+
 import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
@@ -36,6 +39,24 @@ public class DiscoveryServiceController {
 	private LabTestsCacheFactory labTestsCacheFactory;
 	private LabsCacheFactory labsCacheFactory;
 
+	private String getCommaDelimitedString(List<String> itemList){
+		String items = null;
+		
+		if((itemList != null) && (itemList.size() > 0)){
+			StringBuffer itremsBuff = new StringBuffer();
+			
+			Collections.sort(itemList);
+			
+			for (String item : itemList) {
+				itremsBuff.append(",").append(item);
+			}
+			
+			items = itremsBuff.substring(1);
+		}
+		
+		return items;
+	}
+	
 	private SearchCriteriaBean getSearchCriteriaFromRequestParams(MultiValueMap<String, String> requestParams){
 		SearchCriteriaBean searchCriteriaBean = null;
 		if((requestParams != null) && (! requestParams.isEmpty())){
@@ -51,9 +72,38 @@ public class DiscoveryServiceController {
 			String sortBy = requestParams.getFirst(Constants.SORT_BY_QUERY_PARAM);
 			searchCriteriaBean.setSortBy(requestParamsValidator.validate(Constants.SORT_BY_QUERY_PARAM, sortBy));
 
-			String productId = requestParams.getFirst(Constants.PRODUCT_ID_PARAM);
-			if(! StringUtils.isEmpty(productId)){
-				searchCriteriaBean.setProductId(productId);
+			String isLenient = requestParams.getFirst(Constants.IS_LENIENT_PARAM);
+			if(! StringUtils.isEmpty(isLenient)) {
+				searchCriteriaBean.setLenient(requestParamsValidator.validateBoolean(Constants.IS_LENIENT_PARAM, isLenient));
+			}else{
+				searchCriteriaBean.setLenient(true);
+			}
+			
+			String isIncludeProducts = requestParams.getFirst(Constants.INCLUDE_PRODUCTS_PARAM);
+			if(! StringUtils.isEmpty(isIncludeProducts)) {
+				searchCriteriaBean.setIncludeProducts(requestParamsValidator.validateBoolean(Constants.INCLUDE_PRODUCTS_PARAM, isIncludeProducts));
+			}else{
+				searchCriteriaBean.setIncludeProducts(false);
+			}
+
+			String isIncludeLabs = requestParams.getFirst(Constants.INCLUDE_LABS_PARAM);
+			if(! StringUtils.isEmpty(isIncludeLabs)) {
+				searchCriteriaBean.setIncludeLabs(requestParamsValidator.validateBoolean(Constants.INCLUDE_LABS_PARAM, isIncludeLabs));
+			}else{
+				searchCriteriaBean.setIncludeLabs(false);
+			}
+
+			List<String> productIdList = requestParams.get(Constants.PRODUCT_ID_PARAM);
+			if((productIdList == null) || (productIdList.size() <= 1)){
+				String productId = requestParams.getFirst(Constants.PRODUCT_ID_PARAM);
+				if(! StringUtils.isEmpty(productId)){
+					searchCriteriaBean.setProductId(productId);
+				}
+			}else{
+				String productIds = getCommaDelimitedString(productIdList);
+				if(! StringUtils.isEmpty(productIds)){
+					searchCriteriaBean.setProductIds(productIds);
+				}
 			}
 			
 			String productName = requestParams.getFirst(Constants.PRODUCT_NAME_PARAM);
@@ -66,14 +116,27 @@ public class DiscoveryServiceController {
 				searchCriteriaBean.setProductType(productType);
 			}
 
+			String productSubType = requestParams.getFirst(Constants.PRODUCT_SUB_TYPE_PARAM);
+			if(! StringUtils.isEmpty(productSubType)){
+				searchCriteriaBean.setProductSubType(productSubType);
+			}
+			
 			String productSearchTags = requestParams.getFirst(Constants.PRODUCT_SEARCH_TAGS_PARAM);
 			if(! StringUtils.isEmpty(productSearchTags)){
 				searchCriteriaBean.setProductSearchTags(productSearchTags);
 			}
 			
-			String labId = requestParams.getFirst(Constants.LAB_ID_PARAM);
-			if(! StringUtils.isEmpty(labId)){
-				searchCriteriaBean.setLabId(labId);
+			List<String> labIdList = requestParams.get(Constants.LAB_ID_PARAM);
+			if((labIdList == null) || (labIdList.size() <= 1)){
+				String labId = requestParams.getFirst(Constants.LAB_ID_PARAM);
+				if(! StringUtils.isEmpty(labId)){
+					searchCriteriaBean.setLabId(labId);
+				}
+			}else{
+				String labIds = getCommaDelimitedString(labIdList);
+				if(! StringUtils.isEmpty(labIds)){
+					searchCriteriaBean.setLabIds(labIds);
+				}
 			}
 
 			String labName = requestParams.getFirst(Constants.LAB_NAME_PARAM);
@@ -86,11 +149,24 @@ public class DiscoveryServiceController {
 				searchCriteriaBean.setLabGroupName(labGroupName);
 			}
 			
-			String isLenient = requestParams.getFirst(Constants.IS_LENIENT_PARAM);
-			if(! StringUtils.isEmpty(isLenient)) {
-				searchCriteriaBean.setLenient(requestParamsValidator.validateBoolean(Constants.IS_LENIENT_PARAM, isLenient));
-			}else{
-				searchCriteriaBean.setLenient(true);
+			String labLocalityName = requestParams.getFirst(Constants.LAB_LOCALITY_NAME_PARAM);
+			if(! StringUtils.isEmpty(labLocalityName)){
+				searchCriteriaBean.setLocalityName(labLocalityName);
+			}
+			
+			String labCityTownVillage = requestParams.getFirst(Constants.LAB_CITY_TOWN_VILLAGE_PARAM);
+			if(! StringUtils.isEmpty(labCityTownVillage)){
+				searchCriteriaBean.setCityTownOrVillage(labCityTownVillage);
+			}
+			
+			String labState = requestParams.getFirst(Constants.LAB_STATE_PARAM);
+			if(! StringUtils.isEmpty(labState)){
+				searchCriteriaBean.setState(labState);
+			}
+			
+			String labCountry = requestParams.getFirst(Constants.LAB_COUNTRY_PARAM);
+			if(! StringUtils.isEmpty(labCountry)){
+				searchCriteriaBean.setCountry(labCountry);
 			}
 			
 			float latitude = requestParamsValidator.validateGeoLocations(Constants.LATITUDE_PARAM, requestParams.getFirst(Constants.LATITUDE_PARAM));
@@ -159,10 +235,11 @@ public class DiscoveryServiceController {
 		return status;
 	}
 	
-	@RequestMapping(value = "/lab-tests/v1/all", method = RequestMethod.GET, produces="application/json")
-	public @ResponseBody LabTestsSearchResultsBean getLabTests(@RequestParam MultiValueMap<String, String> requestParams,
-															@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
-																final HttpServletResponse httpServletResponse){
+	@RequestMapping(value = "/lab-tests/v1/all/{price-promo}", method = RequestMethod.GET, produces="application/json")
+	public @ResponseBody LabTestsSearchResultsBean getLabTests(@PathVariable("price-promo") String pricePromo, 
+																	@RequestParam MultiValueMap<String, String> requestParams,
+																		@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
+																			final HttpServletResponse httpServletResponse){
 		if(appLogger.isDebugEnabled()){
 			appLogger.debug("Inside {}", "DiscoveryServiceController.getLabTests()");
 		}
@@ -173,7 +250,7 @@ public class DiscoveryServiceController {
 		
 		LabTestsSearchResultsBean labTestsSearchResultsBean = null;
 		String cacheKey = getSearchCriteriaKey(searchCriteriaBean);
-		String cacheKeyType = Constants.LAB_TESTS_CACHE_KEY_TYPE;
+		String cacheKeyType = ((StringUtils.isEmpty(pricePromo)) ? Constants.LAB_TESTS_CACHE_KEY_TYPE : Constants.PRICE_PROMO_CACHE_KEY_TYPE);
 		
 		String errorCode = "" + HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 		String errorDescription = "Unknown Exception. Please check the DiscoveryService application logs for further details.";
@@ -219,9 +296,10 @@ public class DiscoveryServiceController {
 	}
 
 	@RequestMapping(value = "/lab-tests/v1/{id}", method = RequestMethod.GET, produces="application/json")
-	public @ResponseBody LabTestDetailsResultBean getLabTestDetails(@PathVariable("id") String id, @RequestParam MultiValueMap<String, String> requestParams,
-															@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
-																final HttpServletResponse httpServletResponse){
+	public @ResponseBody LabTestDetailsResultBean getLabTestDetails(@PathVariable("id") String id, 
+																		@RequestParam MultiValueMap<String, String> requestParams,
+																			@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
+																				final HttpServletResponse httpServletResponse){
 		if(appLogger.isDebugEnabled()){
 			appLogger.debug("Inside {}", "DiscoveryServiceController.getLabTestDetails()");
 		}
@@ -285,10 +363,10 @@ public class DiscoveryServiceController {
 		return labTestDetailsResultBean;
 	}
 
-	@RequestMapping(value = "/labs/v1/all", method = RequestMethod.GET, produces="application/json")
+	@RequestMapping(value = "/labs/v1/search/", method = RequestMethod.GET, produces="application/json")
 	public @ResponseBody LabsSearchResultsBean getLabs(@RequestParam MultiValueMap<String, String> requestParams,
-															@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
-																final HttpServletResponse httpServletResponse){
+																@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
+																	final HttpServletResponse httpServletResponse){
 		if(appLogger.isDebugEnabled()){
 			appLogger.debug("Inside {}", "DiscoveryServiceController.getLabs()");
 		}
@@ -299,7 +377,7 @@ public class DiscoveryServiceController {
 		SearchCriteriaBean searchCriteriaBean = getSearchCriteriaFromRequestParams(requestParams);
 		
 		String cacheKey = getSearchCriteriaKey(searchCriteriaBean);
-		String cacheKeyType = Constants.LABS_CACHE_KEY_TYPE;
+		String cacheKeyType = (searchCriteriaBean.isIncludeProducts()) ? Constants.PRICE_PROMO_CACHE_KEY_TYPE : Constants.LABS_CACHE_KEY_TYPE;
 		
 		String errorCode = "" + HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 		String errorDescription = "Unknown Exception. Please check the DiscoveryService application logs for further details.";
@@ -344,11 +422,11 @@ public class DiscoveryServiceController {
 		return labsSearchResultsBean;
 	}
 
-	@RequestMapping(value = "/labs/v1/{labId}", method = RequestMethod.GET, produces="application/json")
+	@RequestMapping(value = "/labs/v1/id/{labId}", method = RequestMethod.GET, produces="application/json")
 	public @ResponseBody LabDetailsResultBean getLabDetails(@PathVariable("labId") String labId, 
 																@RequestParam MultiValueMap<String, String> requestParams,
-																@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
-																final HttpServletResponse httpServletResponse){
+																	@RequestHeader(value="X-OAUTH-TOKEN", required = false) String oauthToken,
+																		final HttpServletResponse httpServletResponse){
 		if(appLogger.isDebugEnabled()){
 			appLogger.debug("Inside {}", "DiscoveryServiceController.getLabDetails()");
 		}

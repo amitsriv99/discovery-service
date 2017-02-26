@@ -7,11 +7,13 @@ public class RequestParamsValidator {
 	public boolean validateBoolean(String paramName, String paramValue){
 		boolean validatedParamValue = true;
 		
-		if(Constants.IS_LENIENT_PARAM.equalsIgnoreCase(paramName)){
-			try{
-				validatedParamValue = Boolean.parseBoolean(paramValue);
-			}catch(Exception e){
+		try{
+			validatedParamValue = Boolean.parseBoolean(paramValue);
+		}catch(Exception e){
+			if(Constants.IS_LENIENT_PARAM.equalsIgnoreCase(paramName)){
 				validatedParamValue = true;
+			}else{
+				validatedParamValue = false;
 			}
 		}
 		
